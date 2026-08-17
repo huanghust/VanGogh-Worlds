@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 import { BOULDER_COUNT, boulderAt } from './boulderSpec'
+import { neutralStroke } from './paint'
 
 // crowfield boundary: a continuous WALL of storm-grey boulders around the
 // field — two ragged overlapping rows, like the Auvers hedgerow but stone.
@@ -10,7 +11,14 @@ const PALETTE = ['#5d586e', '#6b6579', '#4c475e', '#7a7387', '#655f72', '#575268
 export function Boulders() {
   const mesh = useMemo(() => {
     const geo = new THREE.IcosahedronGeometry(1, 1)
-    const mat = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true })
+    const stroke = neutralStroke(31)
+    const mat = new THREE.MeshStandardMaterial({
+      roughness: 1,
+      flatShading: true,
+      map: stroke.map,
+      bumpMap: stroke.bump,
+      bumpScale: 0.08,
+    })
     const m = new THREE.InstancedMesh(geo, mat, BOULDER_COUNT)
     m.frustumCulled = false
     const dummy = new THREE.Object3D()

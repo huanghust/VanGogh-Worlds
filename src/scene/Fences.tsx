@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 import { groundHeight, pathCenter } from './terrain'
+import { neutralStroke } from './paint'
 import type { MapId } from './maps'
 
 const FENCE_R = 68
@@ -54,6 +55,7 @@ export function Fences({ map }: { map: MapId }) {
   const gateZ = -67.9
   const gateX = pathCenter(gateZ, map)
   const gateY = groundHeight(gateX, gateZ, map)
+  const stroke = useMemo(() => neutralStroke(61), [])
 
   return (
     <group>
@@ -61,13 +63,13 @@ export function Fences({ map }: { map: MapId }) {
       {posts.map((p, i) => (
         <mesh key={`p${i}`} position={p.pos}>
           <cylinderGeometry args={[0.07, 0.09, POST_H, 6]} />
-          <meshStandardMaterial color="#6b4a2a" roughness={1} />
+          <meshStandardMaterial color="#6b4a2a" roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.02} />
         </mesh>
       ))}
       {rails.map((r, i) => (
         <mesh key={`r${i}`} position={r.pos} quaternion={r.quat}>
           <boxGeometry args={[0.08, 0.12, r.len]} />
-          <meshStandardMaterial color="#7d5833" roughness={1} />
+          <meshStandardMaterial color="#7d5833" roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.02} />
         </mesh>
       ))}
 
@@ -75,19 +77,19 @@ export function Fences({ map }: { map: MapId }) {
       <group position={[gateX, gateY, gateZ]}>
         <mesh position={[-2.6, 0.7, 0]}>
           <cylinderGeometry args={[0.12, 0.14, 1.4, 6]} />
-          <meshStandardMaterial color="#5d3f22" roughness={1} />
+          <meshStandardMaterial color="#5d3f22" roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.02} />
         </mesh>
         <mesh position={[2.6, 0.7, 0]}>
           <cylinderGeometry args={[0.12, 0.14, 1.4, 6]} />
-          <meshStandardMaterial color="#5d3f22" roughness={1} />
+          <meshStandardMaterial color="#5d3f22" roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.02} />
         </mesh>
         <mesh position={[0, 1.05, 0]}>
           <boxGeometry args={[5.4, 0.16, 0.1]} />
-          <meshStandardMaterial color="#8a6136" roughness={1} />
+          <meshStandardMaterial color="#8a6136" roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.02} />
         </mesh>
         <mesh position={[0, 0.55, 0]}>
           <boxGeometry args={[5.4, 0.16, 0.1]} />
-          <meshStandardMaterial color="#8a6136" roughness={1} />
+          <meshStandardMaterial color="#8a6136" roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.02} />
         </mesh>
       </group>
     </group>

@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
+import * as THREE from 'three'
 import { groundHeight } from './terrain'
+import { strokeTexture, strokeBump } from './paint'
 
 // the painter's memorial — where the crowfield's central road dies, a
 // full-size straw hat rests on the dirt beside scattered brushes, tin paint
@@ -34,42 +36,95 @@ const DABS: { x: number; z: number; c: string; s: number }[] = [
 
 export function Memorial() {
   const gy = useMemo(() => groundHeight(SPOT.x, SPOT.z, 'crowfield'), [])
+
+  // the straw hat, rebuilt after Van Gogh's own boater (1887 self-portraits):
+  // flat-topped crown with a dented middle, wavy hand-woven brim, grosgrain
+  // ribbon with a small bow. One lathe surface + a woven-straw stroke texture
+  // — never a smooth plastic dome.
+  const hatGeo = useMemo(() => {
+    const pts = [
+      new THREE.Vector2(0.0, 0.33), // dented crown center
+      new THREE.Vector2(0.2, 0.36),
+      new THREE.Vector2(0.38, 0.345),
+      new THREE.Vector2(0.47, 0.305), // crown top edge
+      new THREE.Vector2(0.5, 0.25),
+      new THREE.Vector2(0.52, 0.12), // crown side
+      new THREE.Vector2(0.545, 0.05),
+      new THREE.Vector2(0.6, 0.028), // flare into the brim
+      new THREE.Vector2(0.82, 0.015),
+      new THREE.Vector2(0.99, 0.0), // brim edge
+      new THREE.Vector2(0.975, -0.022), // slight under-curl
+    ]
+    const g = new THREE.LatheGeometry(pts, 72)
+    // hand-woven wobble — straw is never a perfect surface of revolution
+    const pos = g.attributes.position
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i)
+      const y = pos.getY(i)
+      const z = pos.getZ(i)
+      const theta = Math.atan2(z, x)
+      const r = Math.hypot(x, z)
+      const w = 1 + 0.018 * Math.sin(theta * 9 + y * 34) + 0.012 * Math.sin(theta * 23 + 1.7)
+      pos.setX(i, Math.cos(theta) * r * w)
+      pos.setZ(i, Math.sin(theta) * r * w)
+      pos.setY(i, y + 0.008 * Math.sin(theta * 13 + r * 20))
+    }
+    g.computeVertexNormals()
+    return g
+  }, [])
+
+  const straw = useMemo(() => {
+    const opts = {
+      base: '#bfa055',
+      colors: ['#a8894a', '#d0b266', '#96783c', '#caa85c'],
+      size: 512,
+      strokes: 520,
+      angle: 0,
+      angleJitter: 0.12,
+      len: [20, 46] as [number, number],
+      wid: [2.5, 4.5] as [number, number],
+      alpha: 0.6,
+      seed: 5150,
+      tile: true,
+    }
+    return { map: strokeTexture(opts), bump: strokeBump(opts) }
+  }, [])
+
   return (
     <group position={[SPOT.x, gy, SPOT.z]}>
-      {/* the straw hat — human-sized (brim ≈ a bird's wingspan), crown-down,
-          tipped toward the sky. Flat-crowned like his actual boater: dusty
-          weathered straw, faded ribbon, sweat-stained. No handle. */}
+      {/* the hat — crown-down, tipped toward the sky */}
       <group position={[0, 0.3, 0]} rotation={[0.14, 0.4, 0.09]}>
-        {/* brim — single dusty straw disc, slightly uneven */}
-        <mesh scale={[1, 1, 0.96]}>
-          <cylinderGeometry args={[0.95, 1.0, 0.05, 28]} />
-          <meshStandardMaterial color="#b09a62" roughness={1} />
+        <mesh geometry={hatGeo}>
+          <meshStandardMaterial
+            map={straw.map}
+            bumpMap={straw.bump}
+            bumpScale={0.15}
+            roughness={1}
+            side={THREE.DoubleSide}
+          />
         </mesh>
-        {/* woven inner ring, a shade darker */}
-        <mesh position={[0, 0.032, 0]}>
-          <cylinderGeometry args={[0.62, 0.66, 0.03, 24]} />
-          <meshStandardMaterial color="#9c8552" roughness={1} />
+        {/* faded grosgrain ribbon */}
+        <mesh position={[0, 0.115, 0]}>
+          <cylinderGeometry args={[0.535, 0.56, 0.13, 48]} />
+          <meshStandardMaterial color="#3f2f1c" roughness={1} />
         </mesh>
-        {/* flat crown with a barely-domed top */}
-        <mesh position={[0, 0.2, 0]}>
-          <cylinderGeometry args={[0.48, 0.54, 0.3, 24]} />
-          <meshStandardMaterial color="#a8905a" roughness={1} />
-        </mesh>
-        <mesh position={[0, 0.35, 0]} scale={[1, 0.35, 1]}>
-          <sphereGeometry args={[0.48, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
-          <meshStandardMaterial color="#a8905a" roughness={1} />
-        </mesh>
-        {/* faded ribbon band, dusty black-brown */}
-        <mesh position={[0, 0.12, 0]}>
-          <cylinderGeometry args={[0.545, 0.565, 0.14, 24]} />
-          <meshStandardMaterial color="#43331f" roughness={1} />
-        </mesh>
+        {/* the ribbon's little bow, at the back-left */}
+        <group position={[-0.42, 0.115, 0.36]} rotation={[0, 2.3, 0]}>
+          <mesh rotation={[0, 0, 0.5]}>
+            <boxGeometry args={[0.13, 0.06, 0.03]} />
+            <meshStandardMaterial color="#3f2f1c" roughness={1} />
+          </mesh>
+          <mesh rotation={[0, 0, -0.5]}>
+            <boxGeometry args={[0.13, 0.06, 0.03]} />
+            <meshStandardMaterial color="#46351f" roughness={1} />
+          </mesh>
+        </group>
         {/* sweat stains darkening the brim near the band */}
-        <mesh position={[0.35, 0.045, 0.3]} scale={[1.4, 0.15, 1]}>
+        <mesh position={[0.35, 0.03, 0.3]} scale={[1.4, 0.12, 1]}>
           <sphereGeometry args={[0.14, 10, 8]} />
           <meshStandardMaterial color="#6e5c38" roughness={1} />
         </mesh>
-        <mesh position={[-0.3, 0.045, -0.42]} scale={[1.1, 0.15, 0.9]}>
+        <mesh position={[-0.3, 0.03, -0.42]} scale={[1.1, 0.12, 0.9]}>
           <sphereGeometry args={[0.12, 10, 8]} />
           <meshStandardMaterial color="#75643e" roughness={1} />
         </mesh>

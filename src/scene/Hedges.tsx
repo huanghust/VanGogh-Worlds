@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 import { HEDGE_ROW0, HEDGE_ROW1, hedgeAt, hedgeBackAt } from './hedgeSpec'
+import { neutralStroke } from './paint'
 
 // Auvers has no fences — the field ends in a wild hedgerow, like the
 // dark green borders Van Gogh painted around the Auvers fields.
@@ -9,7 +10,14 @@ import { HEDGE_ROW0, HEDGE_ROW1, hedgeAt, hedgeBackAt } from './hedgeSpec'
 export function Hedges() {
   const mesh = useMemo(() => {
     const geo = new THREE.IcosahedronGeometry(1, 1)
-    const mat = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true })
+    const stroke = neutralStroke(32)
+    const mat = new THREE.MeshStandardMaterial({
+      roughness: 1,
+      flatShading: true,
+      map: stroke.map,
+      bumpMap: stroke.bump,
+      bumpScale: 0.06,
+    })
     const m = new THREE.InstancedMesh(geo, mat, HEDGE_ROW0 + HEDGE_ROW1)
     m.frustumCulled = false
     const dummy = new THREE.Object3D()

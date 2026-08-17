@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
+import { neutralStroke } from './paint'
 
 // Auvers distance: soft meadows rolling away beyond the hedgerow — layered
 // green swells, dark tree-line clumps, and one splashed poppy patch catching
@@ -25,9 +26,10 @@ export function Meadows() {
   }, [])
 
   // tree-line clumps dotting the meadow crests
+  const stroke = useMemo(() => neutralStroke(41), [])
   const trees = useMemo(() => {
     const geo = new THREE.IcosahedronGeometry(1, 1)
-    const mat = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true })
+    const mat = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true, map: stroke.map, bumpMap: stroke.bump, bumpScale: 0.1 })
     const m = new THREE.InstancedMesh(geo, mat, 46)
     m.frustumCulled = false
     const dummy = new THREE.Object3D()
@@ -46,12 +48,12 @@ export function Meadows() {
     m.instanceMatrix.needsUpdate = true
     if (m.instanceColor) m.instanceColor.needsUpdate = true
     return m
-  }, [])
+  }, [stroke])
 
   // the poppy splash — a low orange-dotted patch on the south-east meadow
   const poppies = useMemo(() => {
     const geo = new THREE.IcosahedronGeometry(1, 0)
-    const mat = new THREE.MeshStandardMaterial({ roughness: 0.8, flatShading: true })
+    const mat = new THREE.MeshStandardMaterial({ roughness: 0.8, flatShading: true, map: stroke.map, bumpMap: stroke.bump, bumpScale: 0.02 })
     const m = new THREE.InstancedMesh(geo, mat, 130)
     m.frustumCulled = false
     const dummy = new THREE.Object3D()
@@ -69,14 +71,21 @@ export function Meadows() {
     m.instanceMatrix.needsUpdate = true
     if (m.instanceColor) m.instanceColor.needsUpdate = true
     return m
-  }, [])
+  }, [stroke])
 
   return (
     <group>
       {hills.map((h, i) => (
         <mesh key={i} position={h.pos} scale={h.scale}>
           <sphereGeometry args={[1, 20, 14]} />
-          <meshStandardMaterial color={h.color} roughness={1} flatShading />
+          <meshStandardMaterial
+            color={h.color}
+            roughness={1}
+            flatShading
+            map={stroke.map}
+            bumpMap={stroke.bump}
+            bumpScale={0.4}
+          />
         </mesh>
       ))}
       <primitive object={trees} />

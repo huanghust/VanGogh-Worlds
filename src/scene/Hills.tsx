@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { neutralStroke } from './paint'
 
 type HouseDef = { pos: [number, number, number]; w: number; h: number; c: string }
 
@@ -51,12 +52,14 @@ export function HillsAndVillage() {
     []
   )
 
+  const stroke = useMemo(() => neutralStroke(51), [])
+
   return (
     <group>
       {hills.map((h, i) => (
         <mesh key={i} position={[h.pos[0], -2, h.pos[2]]} scale={h.scale}>
           <sphereGeometry args={[1, 24, 16]} />
-          <meshStandardMaterial color={h.color} roughness={1} flatShading />
+          <meshStandardMaterial color={h.color} roughness={1} flatShading map={stroke.map} bumpMap={stroke.bump} bumpScale={0.4} />
         </mesh>
       ))}
 
@@ -65,11 +68,11 @@ export function HillsAndVillage() {
         <group key={i} position={h.pos}>
           <mesh position={[0, h.h / 2, 0]}>
             <boxGeometry args={[h.w, h.h, h.w]} />
-            <meshStandardMaterial color={h.c} roughness={1} />
+            <meshStandardMaterial color={h.c} roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.05} />
           </mesh>
           <mesh position={[0, h.h + h.w * 0.3, 0]} rotation={[0, Math.PI / 4, 0]}>
             <coneGeometry args={[h.w * 0.72, h.w * 0.6, 4]} />
-            <meshStandardMaterial color="#8a5a3a" roughness={1} />
+            <meshStandardMaterial color="#8a5a3a" roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.05} />
           </mesh>
           {/* glowing window */}
           <mesh position={[0, h.h * 0.45, h.w / 2 + 0.05]}>
@@ -83,15 +86,15 @@ export function HillsAndVillage() {
       <group position={[0, 0, -122]}>
         <mesh position={[0, 3.5, 0]}>
           <boxGeometry args={[8, 7, 10]} />
-          <meshStandardMaterial color="#e6d8b8" roughness={1} />
+          <meshStandardMaterial color="#e6d8b8" roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.05} />
         </mesh>
         <mesh position={[0, 10.5, 0]}>
           <coneGeometry args={[3.4, 8, 4]} />
-          <meshStandardMaterial color="#37506e" roughness={1} />
+          <meshStandardMaterial color="#37506e" roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.05} />
         </mesh>
         <mesh position={[0, 15.5, 0]}>
           <coneGeometry args={[0.5, 3.5, 4]} />
-          <meshStandardMaterial color="#2c405a" roughness={1} />
+          <meshStandardMaterial color="#2c405a" roughness={1} map={stroke.map} bumpMap={stroke.bump} bumpScale={0.05} />
         </mesh>
       </group>
     </group>

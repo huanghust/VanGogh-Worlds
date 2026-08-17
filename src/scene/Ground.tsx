@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import type { MapId } from './maps'
+import { strokeTexture } from './paint'
 
 const vertexShader = /* glsl */ `
 uniform float uAuvers;
@@ -50,6 +51,7 @@ const fragmentShader = /* glsl */ `
 uniform vec3 uDim;
 uniform float uAuvers;
 uniform float uCrow;
+uniform sampler2D uStrokes;
 varying vec2 vXZ;
 varying float vH;
 float hash(vec2 p) {
@@ -178,6 +180,13 @@ void main() {
     col = mix(col, vec3(0.35, 0.55, 0.72), smoothstep(140.0, 220.0, d) * 0.6);
   }
 
+  // the oil-paint layer: two scales of brushstroke relief over everything —
+  // short hatched dashes along the field direction, so even bare ground
+  // reads as painted canvas, never flat vector color
+  float sk1 = texture2D(uStrokes, vXZ * 0.10).r;
+  float sk2 = texture2D(uStrokes, vXZ * 0.024 + 0.37).r;
+  col *= 0.80 + sk1 * 0.34 + sk2 * 0.14;
+
   gl_FragColor = vec4(col * uDim, 1.0);
 }
 `
@@ -196,13 +205,32 @@ export function Ground({
     return g
   }, [map])
 
+  const strokeTex = useMemo(
+    () =>
+      strokeTexture({
+        base: '#7d7d7d',
+        colors: ['#6e6e6e', '#929292', '#5c5c5c', '#a6a6a6'],
+        size: 512,
+        strokes: 340,
+        angle: 0, // strokes run along the field rows
+        angleJitter: 0.22,
+        len: [18, 44],
+        wid: [4, 8],
+        alpha: 0.55,
+        seed: 900,
+        tile: true,
+      }),
+    []
+  )
+
   const uniforms = useMemo(
     () => ({
       uDim: { value: new THREE.Vector3(1, 1, 1) },
       uAuvers: { value: map === 'auvers' ? 1 : 0 },
       uCrow: { value: map === 'crowfield' ? 1 : 0 },
+      uStrokes: { value: strokeTex },
     }),
-    [map]
+    [map, strokeTex]
   )
 
   const material = useMemo(

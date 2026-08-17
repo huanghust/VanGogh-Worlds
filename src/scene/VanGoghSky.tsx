@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import type { MapId } from './maps'
+import { strokeTexture } from './paint'
 
 const vertexShader = /* glsl */ `
 varying vec3 vDir;
@@ -20,6 +21,7 @@ uniform float uDusk;
 uniform float uNight;
 uniform float uAuvers;
 uniform float uCrow;
+uniform sampler2D uStrokes;
 
 float hash(vec2 p) {
   p = fract(p * vec2(234.34, 435.345));
@@ -127,6 +129,14 @@ void main() {
   float star = step(0.9975, hash(floor(d.xz / max(d.y, 0.05) * 60.0)));
   col += vec3(1.0, 0.95, 0.7) * star * uDusk * smoothstep(0.15, 0.5, h) * (0.6 + 0.4 * sin(uTime * 2.0 + hash(floor(d.xz * 60.0)) * 20.0));
 
+  // the oil-paint layer: hatched brush dashes sampled THROUGH the swirled
+  // uv, so the strokes themselves bend with the vortices — the same impasto
+  // dash texture the mountains wear, two scales, crisper at the zenith
+  float sk1 = texture2D(uStrokes, uv * vec2(0.32, 0.45)).r;
+  float sk2 = texture2D(uStrokes, uv * vec2(0.11, 0.16) + 0.53).r;
+  float skyPaint = 0.84 + sk1 * 0.26 + sk2 * 0.12;
+  col *= mix(1.0, skyPaint, smoothstep(0.0, 0.18, h)); // keep the horizon haze soft
+
   // subtle canvas grain
   col += (hash(d.xy * 480.0 + uTime) - 0.5) * 0.03;
 
@@ -145,6 +155,24 @@ export function VanGoghSky({
 }) {
   const matRef = useRef<THREE.ShaderMaterial>(null)
 
+  const strokeTex = useMemo(
+    () =>
+      strokeTexture({
+        base: '#7d7d7d',
+        colors: ['#6b6b6b', '#949494', '#565656', '#ababab'],
+        size: 512,
+        strokes: 300,
+        angle: 0.15,
+        angleJitter: 0.35, // freer than the ground — sky strokes dance
+        len: [22, 50],
+        wid: [5, 9],
+        alpha: 0.55,
+        seed: 4242,
+        tile: true,
+      }),
+    []
+  )
+
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
@@ -152,8 +180,9 @@ export function VanGoghSky({
       uNight: { value: 0 },
       uAuvers: { value: map === 'auvers' ? 1 : 0 },
       uCrow: { value: map === 'crowfield' ? 1 : 0 },
+      uStrokes: { value: strokeTex },
     }),
-    [map]
+    [map, strokeTex]
   )
 
   useFrame((state, delta) => {

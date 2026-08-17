@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
+import { neutralStroke } from './paint'
 
 // crowfield distance: the painting's storm plain ends in rough country.
 // Three overlapping ranges of craggy, wind-torn rock — NOT neat pyramids —
@@ -44,12 +45,14 @@ function ridgeCrags(): Crag[] {
 
 export function Mountains() {
   const crags = useMemo(() => ridgeCrags(), [])
+  const stroke = useMemo(() => neutralStroke(33), [])
 
   // near-band outcrops: lone rocks and shattered slabs between the boulder
   // wall and the first range — the field's rough apron
   const outcrops = useMemo(() => {
     const geo = new THREE.IcosahedronGeometry(1, 1)
-    const mat = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true })
+    const stroke = neutralStroke(34)
+    const mat = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true, map: stroke.map, bumpMap: stroke.bump, bumpScale: 0.1 })
     const m = new THREE.InstancedMesh(geo, mat, 26)
     m.frustumCulled = false
     const dummy = new THREE.Object3D()
@@ -74,7 +77,8 @@ export function Mountains() {
   // wind-bent thornbushes: dark knots hunched low between the outcrops
   const thorns = useMemo(() => {
     const geo = new THREE.IcosahedronGeometry(1, 0)
-    const mat = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true })
+    const stroke = neutralStroke(35)
+    const mat = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true, map: stroke.map, bumpMap: stroke.bump, bumpScale: 0.05 })
     const m = new THREE.InstancedMesh(geo, mat, 34)
     m.frustumCulled = false
     const dummy = new THREE.Object3D()
@@ -102,7 +106,14 @@ export function Mountains() {
       {crags.map((c, i) => (
         <mesh key={i} position={c.pos} scale={c.scale} rotation={[0, c.rotY, c.lean]}>
           <icosahedronGeometry args={[1, 1]} />
-          <meshStandardMaterial color={c.color} roughness={1} flatShading />
+          <meshStandardMaterial
+            color={c.color}
+            roughness={1}
+            flatShading
+            map={stroke.map}
+            bumpMap={stroke.bump}
+            bumpScale={0.5}
+          />
         </mesh>
       ))}
       <primitive object={outcrops} />
