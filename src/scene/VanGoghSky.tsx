@@ -95,14 +95,14 @@ void main() {
   vec3 strokeCol = mix(mix(strokeDay, vec3(1.0, 0.80, 0.45), uDusk), vec3(0.80, 0.86, 1.0), uNight);
   col = mix(col, strokeCol, strokes * (0.35 + 0.30 * uNight + 0.20 * uAuvers + 0.25 * uCrow) * smoothstep(0.0, 0.35, h));
   // crowfield: heavy storm-cloud masses — dark blue-violet bellies hanging
-  // LOW over the field, a suffocating lid of cloud with pale grey-white
-  // puffs torn between them
-  float cloud = smoothstep(0.40, 0.72, fbm(uv * vec2(0.9, 1.7) + vec2(t * 0.6, 3.0)));
+  // LOW over the field. HARD-edged smoothsteps: flat painted shapes with
+  // crisp contours (the dash layer on top hatches them), never photo-clouds
+  float cloud = smoothstep(0.46, 0.60, fbm(uv * vec2(0.9, 1.7) + vec2(t * 0.6, 3.0)));
   col = mix(col, mix(vec3(0.09, 0.15, 0.34), vec3(0.05, 0.09, 0.24), uNight + uDusk), cloud * 0.85 * uCrow * smoothstep(0.0, 0.45, h));
   // a second, lower deck — the oppressive weight pressing on the horizon
-  float lowDeck = smoothstep(0.45, 0.8, fbm(uv * vec2(1.3, 2.2) + vec2(-t * 0.5, 17.0)));
+  float lowDeck = smoothstep(0.50, 0.66, fbm(uv * vec2(1.3, 2.2) + vec2(-t * 0.5, 17.0)));
   col = mix(col, mix(vec3(0.12, 0.19, 0.38), vec3(0.07, 0.11, 0.26), uNight + uDusk), lowDeck * 0.6 * uCrow * (1.0 - smoothstep(0.05, 0.35, h)));
-  float puff = smoothstep(0.62, 0.85, fbm(uv * vec2(1.6, 2.6) + vec2(-t * 0.4, 9.0)));
+  float puff = smoothstep(0.64, 0.76, fbm(uv * vec2(1.6, 2.6) + vec2(-t * 0.4, 9.0)));
   col = mix(col, vec3(0.72, 0.77, 0.79) * (1.0 - 0.6 * uDusk - 0.8 * uNight), puff * 0.45 * uCrow * smoothstep(0.02, 0.3, h));
   // Auvers: lavender-blue swirl accents drifting through the cream
   float lav = smoothstep(0.5, 0.82, streak);
@@ -129,13 +129,19 @@ void main() {
   float star = step(0.9975, hash(floor(d.xz / max(d.y, 0.05) * 60.0)));
   col += vec3(1.0, 0.95, 0.7) * star * uDusk * smoothstep(0.15, 0.5, h) * (0.6 + 0.4 * sin(uTime * 2.0 + hash(floor(d.xz * 60.0)) * 20.0));
 
-  // the oil-paint layer: hatched brush dashes sampled THROUGH the swirled
-  // uv, so the strokes themselves bend with the vortices — the same impasto
-  // dash texture the mountains wear, two scales, crisper at the zenith
-  float sk1 = texture2D(uStrokes, uv * vec2(0.32, 0.45)).r;
-  float sk2 = texture2D(uStrokes, uv * vec2(0.11, 0.16) + 0.53).r;
-  float skyPaint = 0.84 + sk1 * 0.26 + sk2 * 0.12;
-  col *= mix(1.0, skyPaint, smoothstep(0.0, 0.18, h)); // keep the horizon haze soft
+  // ---- BOLD painted dashes: crisp, countable strokes riding the vortices ----
+  // sampled THROUGH the swirled uv, so every dash bends with the whirlpools.
+  // Two tonal bands (light impasto ridges + dark grooves between them) turn
+  // the soft gradient into visible oil paint — Dear Van Gogh style.
+  float skA = texture2D(uStrokes, uv * vec2(0.22, 0.34)).r;                    // readable dashes
+  float skB = texture2D(uStrokes, uv * vec2(0.075, 0.12) + vec2(0.41, 0.23)).r; // broad underlayer
+  float dashMask = smoothstep(0.0, 0.10, h); // keep the horizon line clean
+  float dashLight = smoothstep(0.55, 0.70, skA) * dashMask;
+  float dashDark  = smoothstep(0.45, 0.30, skA) * dashMask;
+  col = mix(col, col * 1.30 + strokeCol * 0.22, dashLight * 0.60);
+  col = mix(col, col * 0.66, dashDark * 0.55);
+  // the broad underlayer breaks any remaining smoothness into painted patches
+  col *= 0.92 + skB * 0.16;
 
   // subtle canvas grain
   col += (hash(d.xy * 480.0 + uTime) - 0.5) * 0.03;
@@ -158,16 +164,16 @@ export function VanGoghSky({
   const strokeTex = useMemo(
     () =>
       strokeTexture({
-        base: '#7d7d7d',
-        colors: ['#6b6b6b', '#949494', '#565656', '#ababab'],
+        base: '#808080',
+        colors: ['#585858', '#aaaaaa', '#454545', '#c2c2c2'],
         size: 512,
-        strokes: 300,
+        strokes: 240,
         angle: 0.15,
-        angleJitter: 0.35, // freer than the ground — sky strokes dance
-        len: [22, 50],
-        wid: [5, 9],
-        alpha: 0.55,
-        seed: 4242,
+        angleJitter: 0.4, // sky strokes dance — Van Gogh's skies are wild
+        len: [30, 70], // long, countable dashes, not stipple
+        wid: [6, 11],
+        alpha: 0.8,
+        seed: 7777,
         tile: true,
       }),
     []
