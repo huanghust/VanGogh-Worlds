@@ -40,7 +40,7 @@ void main() {
   // living paint — the whole canvas breathes, slowly
   u += 0.0035 * sin(uTime * 0.06 + vv * 8.0);
   vv += 0.002 * sin(uTime * 0.045 + u * 20.0);
-  vec3 col = texture2D(uSky, vec2(u, vv * 0.62)).rgb;
+  vec3 col = texture2D(uSky, vec2(u, 1.0 - vv * 0.62)).rgb; // flipY: v=1 is the canvas TOP (zenith)
 
   float h = clamp(d.y, -0.08, 1.0);
 
