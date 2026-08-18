@@ -26,20 +26,26 @@ function mulberry32(seed: number) {
 
 type Vortex = { u: number; v: number; s: number }
 
+// sun position matching the shader's sunDir (0.55, 0.42, -0.72).
+// canvas fraction from the TOP: (1 - d.y) * SKY_FRAC (flipY — canvas row 0
+// is the zenith). The main vortex sits exactly here, so the sky spirals
+// AROUND the sun like a Starry Night moon, not beside it.
+const SUN = { u: 0.354, v: (1 - 0.421) * SKY_FRAC }
+
 const VORTICES: Record<MapId, Vortex[]> = {
   wheatfield: [
-    { u: 0.3, v: 0.22, s: 2.4 },
-    { u: 0.66, v: 0.16, s: -2.0 },
-    { u: 0.5, v: 0.38, s: 1.3 },
+    { u: SUN.u, v: SUN.v, s: 3.6 }, // the sun IS the whirlpool
+    { u: 0.75, v: 0.16, s: -1.7 },
+    { u: 0.12, v: 0.28, s: 1.5 },
   ],
   auvers: [
-    { u: 0.38, v: 0.18, s: 1.3 },
-    { u: 0.74, v: 0.28, s: -1.1 },
+    { u: SUN.u, v: SUN.v, s: 2.4 },
+    { u: 0.72, v: 0.2, s: -1.2 },
   ],
   crowfield: [
-    { u: 0.34, v: 0.2, s: 3.0 },
-    { u: 0.7, v: 0.13, s: -2.5 },
-    { u: 0.14, v: 0.34, s: 1.7 },
+    { u: SUN.u, v: SUN.v, s: 3.4 },
+    { u: 0.7, v: 0.13, s: -2.6 },
+    { u: 0.14, v: 0.34, s: 1.8 },
   ],
 }
 
@@ -70,9 +76,6 @@ const ACCENTS: Record<MapId, string[]> = {
   auvers: ['#8a9cc8', '#7ab0a0', '#f8f2e0', '#b8c8e0'],
   crowfield: ['#0d1733', '#56688e', '#b8c0c8', '#1a2a52'],
 }
-
-// sun position matching the shader's sunDir (0.55, 0.42, -0.72)
-const SUN = { u: 0.354, v: 0.421 * SKY_FRAC }
 
 function rampAt(ramp: [number, string][], t: number, out: [number, number, number]) {
   let i = 0
@@ -144,7 +147,7 @@ export function paintSky(map: MapId): THREE.CanvasTexture {
     let cu = u
     let cv = v
     ctx.moveTo(cu * W, cv * H)
-    const steps = 4
+    const steps = 6 // more segments — smooth arcs, no kinked "careless" joints
     for (let s = 0; s < steps; s++) {
       const [dx, dv] = flowDir(vort, cu, cv)
       cu += dx * (len / steps / W)
@@ -169,7 +172,10 @@ export function paintSky(map: MapId): THREE.CanvasTexture {
       }
       const j = () => (rng() - 0.5) * 26
       const col = `rgb(${Math.round(rgb[0] + j()) | 0},${Math.round(rgb[1] + j()) | 0},${Math.round(rgb[2] + j()) | 0})`
-      stroke(x + (rng() - 0.5) * 20, y + (rng() - 0.5) * 8, (rng() - 0.5) * 0.14, 70 + rng() * 70, 13 + rng() * 6, col, 0.95, 0.12)
+      // even the base coat follows the flow — every layer agrees on direction
+      const [fdx, fdv] = flowDir(vort, x / W, y / H)
+      const ang = Math.atan2(fdv, fdx) + (rng() - 0.5) * 0.1
+      stroke(x + (rng() - 0.5) * 20, y + (rng() - 0.5) * 8, ang, 70 + rng() * 70, 13 + rng() * 6, col, 0.95, 0.12)
     }
   }
 

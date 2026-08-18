@@ -92,6 +92,8 @@ class AudioEngine {
   private birdsGain: GainNode | null = null
   private sendBuffer: AudioBuffer | null = null
   private receiveBuffer: AudioBuffer | null = null
+  private crowBuffer: AudioBuffer | null = null
+  private nextCaw = 0 // crowfield: when the next crow calls (ctx time)
   // real guitar samples (University of Iowa MIS, anechoic classical guitar),
   // one per semitone C3..B5, keyed by MIDI number; null until loaded
   private guitarBuffers = new Map<number, AudioBuffer>()
@@ -552,10 +554,11 @@ class AudioEngine {
     for (let m = 48; m <= 83; m++) guitarNotes.push(m) // C3..B5
     const pianoNotes: number[] = []
     for (let m = 50; m <= 80; m += 2) pianoNotes.push(m) // D3..Ab5, whole tones
-    const [birds, send, receive] = await Promise.all([
+    const [birds, send, receive, crow] = await Promise.all([
       this.load('/sounds/day-birds.mp3'),
       this.load('/sounds/send-chirp.mp3'),
       this.load('/sounds/receive-chirp.mp3'),
+      this.load('/sounds/crow-caw.mp3'),
       // real guitar samples load in parallel with the rest; the KS synth
       // covers any note played before its sample arrives
       ...guitarNotes.map(async (m) => {
@@ -571,6 +574,7 @@ class AudioEngine {
     ])
     this.sendBuffer = send
     this.receiveBuffer = receive
+    this.crowBuffer = crow
 
     const loop = (buf: AudioBuffer | null) => {
       if (!buf) return null
@@ -599,6 +603,7 @@ class AudioEngine {
   setMap(map: string) {
     this.map = map
     this.applyMusicMode()
+    this.applyMode() // crowfield: sparrow ambience off, crow caws take over
   }
 
   private applyMusicMode() {
@@ -615,7 +620,8 @@ class AudioEngine {
     if (!this.ctx) return
     const t = this.ctx.currentTime
     // day: birds sing · dusk: a few linger · night: piano + whisper of wind
-    const birds = { day: 0.35, dusk: 0.16, night: 0 }[this.mode]
+    // crowfield: no sparrows here — the crows call instead (see tick())
+    const birds = this.map === 'crowfield' ? 0 : { day: 0.35, dusk: 0.16, night: 0 }[this.mode]
     this.birdsGain?.gain.setTargetAtTime(birds, t, 1.2)
   }
 
@@ -685,7 +691,7 @@ class AudioEngine {
   }
 
   // chat sounds — soft pops, kept well under the ambience
-  private playBuf(buf: AudioBuffer | null, volume: number, rate = 1) {
+  private playBuf(buf: AudioBuffer | null, volume: number, rate = 1, delay = 0) {
     if (!this.ctx || !buf || !this.master) return
     const src = this.ctx.createBufferSource()
     src.buffer = buf
@@ -694,7 +700,7 @@ class AudioEngine {
     g.gain.value = volume
     src.connect(g)
     g.connect(this.master)
-    src.start()
+    src.start(this.ctx.currentTime + delay)
   }
 
   // your own message went through — a soft blip, tucked under the music
@@ -711,6 +717,22 @@ class AudioEngine {
   tick(motion: number, delta: number) {
     this.motion = motion
     if (!this.ctx || !this.windGain) return
+
+    // crowfield ambience: lone crows caw across the storm field — sparse,
+    // uneven, sometimes answering themselves. Day + dusk; silent at night.
+    if (this.map === 'crowfield' && this.crowBuffer && this.mode !== 'night') {
+      const now = this.ctx.currentTime
+      if (now >= this.nextCaw) {
+        const vol = (this.mode === 'dusk' ? 0.16 : 0.24) * (0.8 + Math.random() * 0.4)
+        this.playBuf(this.crowBuffer, vol, 0.92 + Math.random() * 0.2)
+        if (Math.random() < 0.35) {
+          // a second crow answers from across the field
+          this.playBuf(this.crowBuffer, vol * 0.7, 0.85 + Math.random() * 0.15, 0.55 + Math.random() * 0.4)
+        }
+        this.nextCaw = now + 3.5 + Math.random() * 6
+      }
+    }
+
     this.gustBoost = Math.max(0, this.gustBoost - delta * 0.45)
 
     // wind base: calmer at night, louder in the day; flying fast adds whoosh.
