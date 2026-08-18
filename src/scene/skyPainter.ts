@@ -215,25 +215,39 @@ export function paintSky(map: MapId): THREE.CanvasTexture {
     flowStroke(u, v, 34 + rng() * 66, 5 + rng() * 6, col, 0.5 + rng() * 0.35)
   }
 
-  // ---- 4. the sun: concentric rings of tangential dashes ----
+  // ---- 4. the sun: a COMPACT disc of paint — Van Gogh's suns are tightly
+  // wound spirals, not a wide scattered ring-field ----
   if (map !== 'crowfield') {
     const sx = SUN.u * W
     const sy = SUN.v * H
-    const ringCols = ['#fff6d8', '#ffe9a0', '#ffd76e', '#f7efC8']
-    for (let r = 26; r < 190; r += 15) {
-      const n = Math.floor((r * Math.PI * 2) / 34)
+    const ringCols = ['#fff6d8', '#ffe9a0', '#ffd76e', '#f7efc8']
+    // concentric rings packed edge to edge, tangential dashes tiling them
+    for (let r = 7; r < 66; r += 8.5) {
+      const dashLen = 15 + r * 0.14
+      const n = Math.max(4, Math.floor((r * Math.PI * 2) / (dashLen * 0.8)))
       for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2 + rng() * 0.2
+        const a = (i / n) * Math.PI * 2 + rng() * 0.15
         const x = sx + Math.cos(a) * r
-        const y = sy + Math.sin(a) * r * 0.75 // slightly squashed halo
-        stroke(x, y, a + Math.PI / 2 + (rng() - 0.5) * 0.3, 18 + rng() * 16, 6 + rng() * 4, ringCols[i % ringCols.length], 0.85)
+        const y = sy + Math.sin(a) * r * 0.92
+        stroke(x, y, a + Math.PI / 2 + (rng() - 0.5) * 0.18, dashLen, 7 + rng() * 3, ringCols[(i + Math.floor(r)) % ringCols.length], 0.95)
       }
     }
-    // hot core
-    for (let i = 0; i < 40; i++) {
+    // white-hot heart
+    for (let i = 0; i < 30; i++) {
       const a = rng() * Math.PI * 2
-      const r = rng() * 22
-      stroke(sx + Math.cos(a) * r, sy + Math.sin(a) * r * 0.75, rng() * Math.PI, 14 + rng() * 12, 7, '#fffbe8', 0.95)
+      const r = rng() * 16
+      stroke(sx + Math.cos(a) * r, sy + Math.sin(a) * r * 0.92, rng() * Math.PI, 12 + rng() * 10, 8, '#fffbe8', 0.95)
+    }
+    // a tight luminous halo hugging the disc — two rings only, then sky
+    for (const [hr, ha] of [
+      [78, 0.55],
+      [96, 0.3],
+    ] as const) {
+      const n = Math.floor((hr * Math.PI * 2) / 30)
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + rng() * 0.2
+        stroke(sx + Math.cos(a) * hr, sy + Math.sin(a) * hr * 0.92, a + Math.PI / 2, 16 + rng() * 10, 5 + rng() * 3, '#f7e9c0', ha)
+      }
     }
   } else {
     // the storm swallows the sun — a smothered pale smudge of flow-following dashes
