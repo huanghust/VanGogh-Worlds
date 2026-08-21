@@ -1,14 +1,14 @@
 import { useEffect, useRef } from 'react'
-import { Feather, Music, MapPin, Ban, Lock, Check, X, HeartHandshake } from 'lucide-react'
+import { Feather, MapPin, Ban, Lock, Check, X, HeartHandshake } from 'lucide-react'
 import type { LangKey } from './i18n'
 import type { FriendEntry } from './scene/presence'
 
 // Friend menu — slides in from the right when you tap another player's bird.
 // The panel is one living wheat stalk drawn as a single SVG: grain crown on
 // top, four ability nodes growing out of the stem (bottom → top: befriend,
-// music, locate, block), a golden thread winding between them, and every
-// friend perched on the tree as a small gull-stroke bird. ~1/3 of the
-// screen, ~50% transparent, no captions under the icons (by design).
+// lead, locate, block), a golden thread winding between them, and THE friend
+// this tree belongs to perched on a branch (one tree, one name).
+// ~1/3 of the screen, ~50% transparent, no captions under the icons.
 
 const slideStyle = `@keyframes friendSlideIn { from { transform: translateX(100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }`
 
@@ -16,17 +16,17 @@ const GOLD = '#e8c46a'
 const GOLD_DIM = 'rgba(216,178,92,0.55)'
 const CREAM = '#f5e6bd'
 
-// node heights on the stalk (top → bottom: block, locate, music, lead,
-// befriend — befriend sits lowest, closest to the hand)
-const NODE_Y = { block: 170, locate: 262, music: 354, lead: 446, befriend: 538 } as const
+// node heights on the stalk (top → bottom: block, locate, lead, befriend —
+// befriend sits lowest, closest to the hand)
+const NODE_Y = { block: 170, locate: 285, lead: 400, befriend: 515 } as const
 const CX = 110 // stalk center x
 
 // a smooth S-curving stalk that passes exactly through every node point
 function stalkPath(): string {
   const pts = [
-    [CX, 648], [CX - 7, 596], [CX, NODE_Y.befriend], [CX + 8, 492],
-    [CX, NODE_Y.lead], [CX - 8, 400], [CX, NODE_Y.music], [CX + 8, 308],
-    [CX, NODE_Y.locate], [CX - 8, 216], [CX, NODE_Y.block], [CX - 5, 122], [CX, 74],
+    [CX, 648], [CX - 7, 570], [CX, NODE_Y.befriend], [CX + 8, 458],
+    [CX, NODE_Y.lead], [CX - 8, 344], [CX, NODE_Y.locate], [CX + 8, 226],
+    [CX, NODE_Y.block], [CX - 5, 122], [CX, 74],
   ]
   let d = `M${pts[0][0]},${pts[0][1]}`
   for (let i = 1; i < pts.length; i++) {
@@ -95,7 +95,7 @@ function TreeNode({
   onClick: () => void
 }) {
   const y = NODE_Y[nodeKey]
-  const Icon = { block: Ban, locate: MapPin, music: Music, lead: HeartHandshake, befriend: Feather }[nodeKey]
+  const Icon = { block: Ban, locate: MapPin, lead: HeartHandshake, befriend: Feather }[nodeKey]
   const faint = locked || dimmed
   return (
     <g
@@ -143,7 +143,7 @@ function TreeNode({
 function PerchedBird({ index, name, highlighted }: { index: number; name: string; highlighted: boolean }) {
   const side = index % 2 === 0 ? 1 : -1
   // twig heights sit between the node circles so nothing overlaps
-  const y = [586, 492, 400, 308, 216, 124][index % 6]
+  const y = [570, 457, 342, 227, 122, 98][index % 6]
   const tipX = CX + side * 46
   const tipY = y - 12
   const bright = highlighted ? 1 : 0.78
@@ -189,12 +189,15 @@ export function FriendMenu({
   targetId,
   leadLinked,
   leadPending,
+  blocked,
   onClose,
   onBefriend,
   onLead,
   onLeadRelease,
   onLocked,
-  onSoon,
+  onLocate,
+  onBlock,
+  onRename,
 }: {
   t: (k: LangKey) => string
   label: string
@@ -204,12 +207,15 @@ export function FriendMenu({
   targetId: string
   leadLinked: boolean
   leadPending: boolean
+  blocked?: boolean // in MY block list — their tree withers to one unblock button
   onClose: () => void
   onBefriend: () => void
   onLead: () => void
   onLeadRelease: () => void
   onLocked: () => void
-  onSoon: () => void
+  onLocate: () => void // map-pin: face them; again within 10s = offer warp
+  onBlock: () => void // block ⇄ unblock (the same node both ways)
+  onRename: () => void // feather again on a friend = rename them
 }) {
   return (
     <>
@@ -233,7 +239,22 @@ export function FriendMenu({
           {pendingOut && !isFriend && <p className="mt-1 text-xs text-[#d8c48a]/60">{t('friendPending')}</p>}
         </div>
 
-        {/* the friendship tree */}
+        {/* blocked: the tree withers to a single unblock button */}
+        {blocked ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8">
+            <button
+              onClick={onBlock}
+              aria-label={t('friendUnblock').replace('{name}', label)}
+              className="flex h-16 w-16 items-center justify-center rounded-full border border-[#f5e6bd]/50 bg-[#f5e6bd]/8 text-[#f5e6bd] transition-all hover:scale-105 hover:bg-[#f5e6bd]/15"
+            >
+              <Ban size={26} strokeWidth={1.6} />
+            </button>
+            <p className="text-center text-sm tracking-[0.12em] text-[#f5e6bd]/85">
+              {t('friendUnblock').replace('{name}', label)}
+            </p>
+          </div>
+        ) : (
+        /* the friendship tree */
         <svg viewBox="0 0 220 660" className="mt-2 w-full flex-1" preserveAspectRatio="xMidYMax meet" aria-hidden={false}>
           <defs>
             <linearGradient id="stalkGrad" x1="0" y1="0" x2="0" y2="1">
@@ -248,24 +269,20 @@ export function FriendMenu({
 
           <Crown />
 
-          {/* perched friends */}
-          {friends.slice(0, 6).map((f, i) => (
-            <PerchedBird key={f.id} index={i} name={f.name} highlighted={f.id === targetId} />
-          ))}
+          {/* one tree, one name — only THIS friend perches here */}
+          {friends
+            .filter((f) => f.id === targetId)
+            .map((f, i) => (
+              <PerchedBird key={f.id} index={i} name={f.name} highlighted />
+            ))}
 
           {/* ability nodes — top: block … bottom: befriend */}
-          <TreeNode nodeKey="block" label={t('friendNodeBlock')} onClick={onSoon} />
+          <TreeNode nodeKey="block" label={t('friendNodeBlock')} onClick={onBlock} />
           <TreeNode
             nodeKey="locate"
             label={t('friendNodeLocate')}
             locked={!isFriend}
-            onClick={isFriend ? onSoon : onLocked}
-          />
-          <TreeNode
-            nodeKey="music"
-            label={t('friendNodeMusic')}
-            locked={!isFriend}
-            onClick={isFriend ? onSoon : onLocked}
+            onClick={isFriend ? onLocate : onLocked}
           />
           <TreeNode
             nodeKey="lead"
@@ -282,9 +299,10 @@ export function FriendMenu({
             label={t('friendNodeBefriend')}
             dimmed={pendingOut && !isFriend}
             checked={isFriend}
-            onClick={isFriend || pendingOut ? () => {} : onBefriend}
+            onClick={isFriend ? onRename : pendingOut ? () => {} : onBefriend}
           />
         </svg>
+        )}
       </aside>
     </>
   )

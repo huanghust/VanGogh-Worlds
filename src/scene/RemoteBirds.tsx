@@ -26,11 +26,13 @@ function RemoteBird({
   buf,
   name,
   birdRefs,
+  blocked = false,
 }: {
   p: RemotePlayer
   buf: Snap[] // persistent per-player snapshot buffer (owned by RemoteBirds)
   name?: string
   birdRefs: React.MutableRefObject<Map<string, THREE.Group>>
+  blocked?: boolean // in MY block list: grey husk, their words become "......"
   onSelect: (p: RemotePlayer) => void
 }) {
   const group = useRef<THREE.Group>(null)
@@ -38,6 +40,19 @@ function RemoteBird({
   const wingR = useRef<THREE.Group>(null)
   const parts = useMemo(buildBird, [])
   const mat = useMemo(makeBirdMaterial, [])
+  const blockedMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#7d838e',
+        emissive: '#3a3d44',
+        emissiveIntensity: 0.25,
+        roughness: 0.9,
+        flatShading: true,
+        side: THREE.DoubleSide,
+      }),
+    []
+  )
+  const birdMat = blocked ? blockedMat : mat
   const phase = useMemo(() => Math.random() * Math.PI * 2, [])
   const initialized = useRef(false)
 
@@ -127,12 +142,12 @@ function RemoteBird({
 
   return (
     <group ref={group} scale={0.9}>
-      <mesh geometry={parts.body} material={mat} />
+      <mesh geometry={parts.body} material={birdMat} />
       <group ref={wingL}>
-        <mesh geometry={parts.wingL} material={mat} />
+        <mesh geometry={parts.wingL} material={birdMat} />
       </group>
       <group ref={wingR}>
-        <mesh geometry={parts.wingR} material={mat} />
+        <mesh geometry={parts.wingR} material={birdMat} />
       </group>
       {name && (
         <Html position={[0, 0.85, 0]} center zIndexRange={[25, 0]}>
@@ -172,7 +187,7 @@ function RemoteBird({
               boxShadow: '0 4px 16px rgba(10,15,40,0.35)',
             }}
           >
-            {p.bubble}
+            {blocked ? '......' : p.bubble}
           </div>
         </Html>
       )}
@@ -188,6 +203,7 @@ export function RemoteBirds({
   birdRefs,
   playersRef,
   freshnessRef,
+  blocked,
   onSelect,
 }: {
   started: boolean
@@ -196,6 +212,7 @@ export function RemoteBirds({
   birdRefs: React.MutableRefObject<Map<string, THREE.Group>> // lifted to App so the handhold follower can find the guide's bird
   playersRef: React.MutableRefObject<RemotePlayer[]> // latest poll (bird picking)
   freshnessRef: React.MutableRefObject<Map<string, [number, number]>> // id -> [server updatedAt, client ms it last advanced] — LeadFollower's ghost detector
+  blocked?: Set<string> // MY block list — those birds fly grey and wordless
   onSelect: (p: RemotePlayer) => void
 }) {
   const id = useMemo(getPlayerId, [])
@@ -355,6 +372,7 @@ export function RemoteBirds({
           buf={snapBufs.current.get(p.id) ?? []}
           name={friendNames[p.id]}
           birdRefs={birdRefs}
+          blocked={blocked?.has(p.id)}
           onSelect={onSelect}
         />
       ))}

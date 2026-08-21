@@ -463,6 +463,25 @@ export async function leadReleaseCore(input: { id: string }, ip: string) {
   return { ok: true as const, other: unlinkLead(input.id) };
 }
 
+// warp: landing at a friend's side means landing in their hand — the warper
+// arrives as the LED one, the friend guides. Direct link, no handshake: the
+// client's two-step locate → confirm IS the consent.
+export async function warpLeadCore(input: { id: string; to: string }, ip: string) {
+  if (!allow(`warp:${ip}:${input.id}`, 5, 60000)) return { ok: false as const, reason: "limited" as const };
+  if (input.id === input.to) return { ok: false as const, reason: "self" as const };
+  if (!areFriends(input.id, input.to)) return { ok: false as const, reason: "notFriends" as const };
+  unlinkLead(input.id);
+  unlinkLead(input.to);
+  leads.set(input.to, input.id); // the friend leads, the warper is led
+  const evA = leadEvents.get(input.id) ?? [];
+  evA.push({ with: input.to, role: "led" as const });
+  leadEvents.set(input.id, evA);
+  const evB = leadEvents.get(input.to) ?? [];
+  evB.push({ with: input.id, role: "leader" as const });
+  leadEvents.set(input.to, evB);
+  return { ok: true as const };
+}
+
 // players only share a painting with players inside the same painting
 export async function listCore(id: string, map: string) {
   const now = Date.now();

@@ -33,6 +33,7 @@ import {
   apiLeadReq,
   apiLeadAnswer,
   apiLeadRelease,
+  apiWarpLead,
   type PresenceState,
   type RemotePlayer,
   type FriendEntry,
@@ -673,6 +674,24 @@ export default function App() {
   const perchedRef = useRef(false)
   const [friendsPageOpen, setFriendsPageOpen] = useState(false)
   const [spawnTick, setSpawnTick] = useState(0) // bump = teleport to spawn (joining a friend)
+  // locate & warp: face a friend, then a second tap within 10s offers the warp
+  const faceRef = useRef<{ x: number; z: number } | null>(null)
+  const warpRef = useRef<{ x: number; z: number } | null>(null)
+  const locateStamp = useRef<{ id: string; at: number } | null>(null)
+  const [warpAsk, setWarpAsk] = useState<RemotePlayer | null>(null)
+  // block list — mine alone, kept on this device (the blocker's vision)
+  const [blocked, setBlocked] = useState<Set<string>>(
+    () => new Set(JSON.parse(localStorage.getItem('wheatfield-blocked') ?? '[]') as string[])
+  )
+  const toggleBlock = useCallback((id: string) => {
+    setBlocked((cur) => {
+      const next = new Set(cur)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      localStorage.setItem('wheatfield-blocked', JSON.stringify([...next]))
+      return next
+    })
+  }, [])
   const perchMarkersRef = useRef<{ x: number; y: number; key: number }[]>([]) // floating perch icons
   // lifted presence bookkeeping: latest poll (bird picking) + per-player
   // heartbeat freshness (LeadFollower's ghost-guide detector)
@@ -1231,6 +1250,7 @@ export default function App() {
           birdRefs={birdRefs}
           playersRef={remotePlayersRef}
           freshnessRef={freshnessRef}
+          blocked={blocked}
           onSelect={(p) => {
             if (chatOpen) setChatOpen(false)
             setFriendTarget(p)
@@ -1252,6 +1272,8 @@ export default function App() {
           leadYawRef={leadYawRef}
           moveRef={moveRef}
           spawnTick={spawnTick}
+          faceRef={faceRef}
+          warpRef={warpRef}
           onLockFallback={notifyLockFallback}
         />
         <LeadFollower
@@ -1478,7 +1500,41 @@ export default function App() {
           onLead={() => setFriendConfirm({ kind: 'leadOut', otherId: friendTarget.id })}
           onLeadRelease={releaseLead}
           onLocked={() => showToast(t('friendLocked'))}
-          onSoon={() => showToast(t('friendSoon'))}
+          blocked={blocked.has(friendTarget.id)}
+          onBlock={() => toggleBlock(friendTarget.id)}
+          onRename={() =>
+            setNamingQueue((q) => [
+              ...q,
+              { friendId: friendTarget.id, current: friendNames[friendTarget.id] ?? '' },
+            ])
+          }
+          onLocate={() => {
+            // first tap: turn to face them. Second tap within 10s: offer warp.
+            const p = remotePlayersRef.current.find((pl) => pl.id === friendTarget.id) ?? friendTarget
+            const now = Date.now()
+            if (locateStamp.current && locateStamp.current.id === p.id && now - locateStamp.current.at < 10000) {
+              locateStamp.current = null
+              setWarpAsk(p)
+            } else {
+              faceRef.current = { x: p.x, z: p.z }
+              locateStamp.current = { id: p.id, at: now }
+            }
+          }}
+        />
+      )}
+
+      {/* warp confirm — landing at a friend's side means landing in their hand */}
+      {warpAsk && (
+        <FriendConfirm
+          t={t}
+          text={t('friendWarpAsk')}
+          onYes={() => {
+            warpRef.current = { x: warpAsk.x, z: warpAsk.z }
+            apiWarpLead(getPlayerId(), warpAsk.id).catch(() => {})
+            setWarpAsk(null)
+            setFriendTarget(null)
+          }}
+          onNo={() => setWarpAsk(null)}
         />
       )}
 

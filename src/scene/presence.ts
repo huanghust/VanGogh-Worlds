@@ -109,3 +109,9 @@ export async function apiLeadAnswer(id: string, to: string, accept: boolean): Pr
 export async function apiLeadRelease(id: string): Promise<{ ok: boolean; other: string | null }> {
   return trpcGet('presence.leadRelease', { id })
 }
+
+// warp: teleport to a friend AND land in their hand (server links the pair
+// directly — the friend leads, the warper is led)
+export async function apiWarpLead(id: string, to: string): Promise<{ ok: boolean; reason?: string }> {
+  return trpcGet('presence.warpLead', { id, to })
+}

@@ -63,6 +63,8 @@ const en = {
   friendPending: 'Waiting for an answer…',
   friendNodeBlock: 'block',
   friendNodeLocate: 'locate',
+  friendWarpAsk: 'Warp to their side?',
+  friendUnblock: 'Unblock {name}',
   friendNodeMusic: 'music',
   friendNodeBefriend: 'befriend',
   leadNode: 'lead',
@@ -162,6 +164,8 @@ const zhCN: Record<LangKey, string> = {
   friendPending: '等待对方回应……',
   friendNodeBlock: '屏蔽',
   friendNodeLocate: '定位',
+  friendWarpAsk: '传送到 TA 身边？',
+  friendUnblock: '解除对 {name} 的屏蔽',
   friendNodeMusic: '音乐',
   friendNodeBefriend: '加好友',
 }
@@ -241,6 +245,8 @@ const zhTW: Record<LangKey, string> = {
   friendPending: '等待對方回應……',
   friendNodeBlock: '屏蔽',
   friendNodeLocate: '定位',
+  friendWarpAsk: '傳送到 TA 身邊？',
+  friendUnblock: '解除對 {name} 的封鎖',
   friendNodeMusic: '音樂',
   friendNodeBefriend: '加好友',
 }
@@ -320,6 +326,8 @@ const ja: Record<LangKey, string> = {
   friendPending: '返事を待っています……',
   friendNodeBlock: 'ブロック',
   friendNodeLocate: '位置',
+  friendWarpAsk: '相手のもとへワープする？',
+  friendUnblock: '{name} のブロックを解除',
   friendNodeMusic: '音楽',
   friendNodeBefriend: '友達追加',
 }
@@ -399,6 +407,8 @@ const es: Record<LangKey, string> = {
   friendPending: 'Esperando respuesta…',
   friendNodeBlock: 'bloquear',
   friendNodeLocate: 'localizar',
+  friendWarpAsk: '¿Teletransportarte a su lado?',
+  friendUnblock: 'Desbloquear a {name}',
   friendNodeMusic: 'música',
   friendNodeBefriend: 'amistad',
 }
@@ -478,6 +488,8 @@ const fr: Record<LangKey, string> = {
   friendPending: 'En attente de réponse…',
   friendNodeBlock: 'bloquer',
   friendNodeLocate: 'repérer',
+  friendWarpAsk: 'Se téléporter à ses côtés ?',
+  friendUnblock: 'Débloquer {name}',
   friendNodeMusic: 'musique',
   friendNodeBefriend: 'ami',
 }
@@ -557,6 +569,8 @@ const nl: Record<LangKey, string> = {
   friendPending: 'Wachten op antwoord…',
   friendNodeBlock: 'blokkeren',
   friendNodeLocate: 'vinden',
+  friendWarpAsk: 'Naar hun zijde warpen?',
+  friendUnblock: '{name} deblokkeren',
   friendNodeMusic: 'muziek',
   friendNodeBefriend: 'vriend worden',
 }
@@ -636,6 +650,8 @@ const de: Record<LangKey, string> = {
   friendPending: 'Warte auf Antwort…',
   friendNodeBlock: 'blockieren',
   friendNodeLocate: 'finden',
+  friendWarpAsk: 'An ihre Seite warpen?',
+  friendUnblock: '{name} entsperren',
   friendNodeMusic: 'musik',
   friendNodeBefriend: 'anfreunden',
 }

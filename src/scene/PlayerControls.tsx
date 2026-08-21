@@ -27,6 +27,8 @@ export function PlayerControls({
   leadYawRef,
   moveRef,
   spawnTick,
+  faceRef,
+  warpRef,
   onLockFallback,
 }: {
   joystick: React.MutableRefObject<{ x: number; y: number }>
@@ -44,6 +46,8 @@ export function PlayerControls({
   leadYawRef?: React.MutableRefObject<number> // handholding: the guide's heading — while led we turn with them
   moveRef?: React.MutableRefObject<number> // flight effort 0..1 shared with BirdAvatar's wing flap
   spawnTick?: number // bump to teleport back to the painting's spawn point (joining a friend)
+  faceRef?: React.MutableRefObject<{ x: number; z: number } | null> // locate: ease the view toward this point
+  warpRef?: React.MutableRefObject<{ x: number; z: number } | null> // warp: snap the camera here
   onLockFallback?: () => void // called (throttled) while pointer lock keeps being refused
 }) {
   const { camera, gl } = useThree()
@@ -286,6 +290,27 @@ export function PlayerControls({
     }
 
     camera.rotation.set(pitch.current, yaw.current, 0)
+
+    // locate: ease the view toward the friend (shortest arc, then release)
+    if (faceRef?.current) {
+      const dx = faceRef.current.x - camera.position.x
+      const dz = faceRef.current.z - camera.position.z
+      const target = Math.atan2(-dx, -dz)
+      let dyaw = target - yaw.current
+      while (dyaw > Math.PI) dyaw -= Math.PI * 2
+      while (dyaw < -Math.PI) dyaw += Math.PI * 2
+      yaw.current += dyaw * Math.min(1, delta * 6)
+      if (Math.abs(dyaw) < 0.02) faceRef.current = null
+      camera.rotation.set(pitch.current, yaw.current, 0)
+    }
+
+    // warp: fold the distance — land at the friend's side
+    if (warpRef?.current) {
+      const w = warpRef.current
+      warpRef.current = null
+      camera.position.x = w.x
+      camera.position.z = w.z
+    }
 
     const k = keys.current
 

@@ -11,6 +11,7 @@ import {
   leadReqCore,
   leadAnswerCore,
   leadReleaseCore,
+  warpLeadCore,
   clientIp,
 } from "./presenceCore";
 
@@ -72,5 +73,9 @@ export const presenceRouter = createRouter({
   leadRelease: publicQuery
     .input(z.object({ id: idSchema }))
     .query(({ input, ctx }) => leadReleaseCore(input, clientIp(ctx.req))),
+
+  warpLead: publicQuery
+    .input(z.object({ id: idSchema, to: idSchema }))
+    .query(({ input, ctx }) => warpLeadCore(input, clientIp(ctx.req))),
 });
 
