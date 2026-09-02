@@ -90,6 +90,7 @@ class AudioEngine {
   private windFilter: BiquadFilterNode | null = null
   private noiseBuf: AudioBuffer | null = null
   private birdsGain: GainNode | null = null
+  private rainGain: GainNode | null = null // crowfield: endless rain hiss
   private sendBuffer: AudioBuffer | null = null
   private receiveBuffer: AudioBuffer | null = null
   private crowBuffer: AudioBuffer | null = null
@@ -589,7 +590,23 @@ class AudioEngine {
       return g
     }
     this.birdsGain = loop(birds)
+    // endless rain hiss: the same noise buffer through a darker, softer filter
+    if (this.noiseBuf) {
+      const src = ctx.createBufferSource()
+      src.buffer = this.noiseBuf
+      src.loop = true
+      const lp = ctx.createBiquadFilter()
+      lp.type = 'lowpass'
+      lp.frequency.value = 2600
+      this.rainGain = ctx.createGain()
+      this.rainGain.gain.value = 0
+      src.connect(lp)
+      lp.connect(this.rainGain)
+      this.rainGain.connect(this.master!)
+      src.start()
+    }
     this.applyMode()
+    this.applyMusicMode() // settle the rain gain once the loop exists
   }
 
   // ---- public API ---------------------------------------------------------
@@ -614,6 +631,8 @@ class AudioEngine {
     // green one stays dry enough to hear every note
     const wet = this.map === 'wheatfield' ? 0.3 : this.map === 'auvers' ? 0.16 : 0.2
     this.musicWet?.gain.setTargetAtTime(wet, this.ctx.currentTime, 1.5)
+    // crowfield weather: the rain never stops (theme music held back for now)
+    this.rainGain?.gain.setTargetAtTime(this.map === 'crowfield' ? 0.09 : 0, this.ctx.currentTime, 1.5)
   }
 
   private applyMode() {

@@ -16,6 +16,7 @@ import { Boulders } from './scene/Boulders'
 import { Memorial } from './scene/Memorial'
 import { Mountains } from './scene/Mountains'
 import { Meadows } from './scene/Meadows'
+import { Rain } from './scene/Rain'
 import { PlayerControls, MIN_H, MAX_H, DEFAULT_H } from './scene/PlayerControls'
 import { RemoteBirds } from './scene/RemoteBirds'
 import { LeadFollower } from './scene/LeadFollower'
@@ -1218,12 +1219,13 @@ export default function App() {
           ) : (
             // the crow painting has no village, cypress or hedges — just the
             // field, the three roads and the storm. A ring of boulders marks
-            // the field's rim (perch spots), huge rocks block the side roads,
-            // and where the middle road dies: the painter's hat and tools.
+            // the field's rim (perch spots), and where the middle road dies:
+            // the painter's hat and tools. Rain that never stops.
             <>
               <Boulders />
               <Mountains />
               <Memorial />
+              <Rain />
             </>
           )}
         </group>

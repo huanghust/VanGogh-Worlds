@@ -168,7 +168,9 @@ void main() {
                  + 0.35 * sin(uTime * 0.5 + world.x * 0.045 + world.z * 0.07)
                  + 0.28 * sin(uTime * 1.6 + world.z * 0.13 - world.x * 0.03)
                  + 0.18 * sin(uTime * 3.1 + world.x * 0.21);
-  float lean = uWind * gustWave * 1.35;
+  // the storm wind: one hard direction (east), a CONSTANT 8° lean that never
+  // lets go, plus CHAOTIC layered gusts surging on top — whole patches thrash
+  float lean = uWind * (0.14 + gustWave * 1.2);
   float crosswind = uWind * sin(uTime * 2.3 + world.z * 0.11 + world.x * 0.05) * 0.3;
 
   // gust ripple travelling from click origin
