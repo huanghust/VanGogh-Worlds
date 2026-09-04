@@ -5,7 +5,7 @@ import { useFrame } from '@react-three/fiber'
 // crowfield storm rain — Sky-style: pale slanted streaks that never stop,
 // blown the same way the wheat leans. A box of rain follows the camera and
 // wraps around it, so the field rains wherever you fly.
-const COUNT = 900
+const COUNT = 1800 // doubled — a real downpour now
 const BOX = { x: 70, y: 30, z: 70 }
 const SLANT = 0.14 // matches the wheat's constant lean
 const FALL = 16 // m/s
