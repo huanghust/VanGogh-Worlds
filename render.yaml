@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: vangogh-worlds
+    runtime: docker
+    plan: free
+    healthCheckPath: /
