@@ -1,3 +1,12 @@
+---
+title: VanGogh Worlds
+emoji: 🌻
+colorFrom: yellow
+colorTo: amber
+sdk: docker
+app_port: 7860
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
