@@ -1172,6 +1172,15 @@ export default function App() {
   }[skyMode] as { amb: [string, number]; d1: [string, number]; d2: [string, number]; fog: string; dim: [number, number, number] }
   dimRef.current = LIGHTING.dim
 
+  // crowfield wears a white-blue mist that thickens with distance — near
+  // stays crisp, the far world dissolves (the storm painting's depth)
+  const fogColor =
+    map === 'crowfield'
+      ? { day: '#c3cede', dusk: '#9b92b8', night: '#1e2a44' }[skyMode]
+      : LIGHTING.fog
+  const fogNear = map === 'crowfield' ? 35 : 90
+  const fogFar = map === 'crowfield' ? 160 : 320
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#101a33] font-serif">
       <Canvas
@@ -1181,7 +1190,7 @@ export default function App() {
           gl.setClearColor('#101a33')
         }}
       >
-        <fog attach="fog" args={[LIGHTING.fog, 90, 320]} />
+        <fog attach="fog" args={[fogColor, fogNear, fogFar]} />
         <ambientLight intensity={LIGHTING.amb[1]} color={LIGHTING.amb[0]} />
         <directionalLight position={[40, 60, -50]} intensity={LIGHTING.d1[1]} color={LIGHTING.d1[0]} />
         <directionalLight position={[-30, 40, 60]} intensity={LIGHTING.d2[1]} color={LIGHTING.d2[0]} />
