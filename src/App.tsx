@@ -1450,6 +1450,12 @@ export default function App() {
           >
             <Bird size={16} strokeWidth={1.8} /> {t('friendsBtn')}
           </button>
+          <footer className="absolute bottom-4 left-5 right-5 text-right leading-relaxed sm:bottom-5 sm:left-auto sm:right-6">
+            <p className="text-xs text-[#f5e6bd]/80 sm:text-sm">
+              © 2026 Joanna Huang. All rights reserved.
+            </p>
+            <p className="mt-1 text-[11px] text-[#d8c48a]/70 sm:text-xs">Assisted by AI</p>
+          </footer>
         </div>
       )}
 
