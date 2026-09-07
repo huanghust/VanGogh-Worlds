@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Volume2, VolumeX, Settings, Bird } from 'lucide-react'
+import { Volume2, VolumeX, Settings, Bird, Send } from 'lucide-react'
 import { audio } from './audio/engine'
 import { VanGoghSky } from './scene/VanGoghSky'
 import { Ground } from './scene/Ground'
@@ -1363,21 +1363,38 @@ export default function App() {
         </div>
       )}
 
-      {/* chat input — pinned to the bottom of the screen until sent or canceled */}
+      {/* Chat input stays at the bottom until sent or canceled. */}
       {chatOpen && (
-        <div className="absolute bottom-0 left-0 right-0 z-40 flex justify-center bg-black/40 px-4 py-3 backdrop-blur-md">
-          <input
-            autoFocus
-            value={chatText}
-            onChange={(e) => setChatText(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation()
-              if (e.key === 'Enter') sendChat()
-              if (e.key === 'Escape') setChatOpen(false)
-            }}
-            placeholder={t('chatPlaceholder')}
-            className="w-full max-w-xl rounded-full border border-white/40 bg-white/10 px-5 py-2.5 text-sm text-white placeholder-white/50 outline-none focus:border-[#f5e6bd]"
-          />
+        <div data-ui className="absolute bottom-0 left-0 right-0 z-40 flex justify-center bg-black/40 px-4 py-3 backdrop-blur-md">
+          <div className="flex w-full max-w-xl items-center gap-2 rounded-full border border-white/40 bg-white/10 p-1 pl-5 focus-within:border-[#f5e6bd]">
+            <input
+              autoFocus
+              value={chatText}
+              onChange={(e) => setChatText(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Enter') sendChat()
+                if (e.key === 'Escape') setChatOpen(false)
+              }}
+              placeholder={t('chatPlaceholder')}
+              className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white placeholder-white/50 outline-none"
+            />
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                // Keep the keyboard open until the click lands; blurring the
+                // input can move this bottom bar halfway through a tap.
+                e.preventDefault()
+              }}
+              onClick={sendChat}
+              disabled={!chatText.trim()}
+              aria-label={t('chatSend')}
+              title={t('chatSend')}
+              className="flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full bg-[#f5e6bd]/20 text-[#f5e6bd] transition-colors hover:bg-[#f5e6bd]/30 active:bg-[#f5e6bd]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f5e6bd] disabled:cursor-default disabled:bg-white/5 disabled:text-white/30"
+            >
+              <Send className="pointer-events-none" size={19} strokeWidth={1.8} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       )}
 
