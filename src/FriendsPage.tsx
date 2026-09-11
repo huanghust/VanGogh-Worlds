@@ -83,7 +83,7 @@ export function FriendsPage({
     <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#0d1530]/95 backdrop-blur-sm">
       <button
         onClick={onClose}
-        className="absolute left-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+        className="absolute left-5 top-5 flex h-11 w-11 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
         aria-label="back"
       >
         ‹

@@ -97,6 +97,7 @@ export function PlayerControls({
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      if (!started || paused) return
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return // typing in chat
       if (e.repeat) return
@@ -120,7 +121,7 @@ export function PlayerControls({
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
     }
-  }, [continuousFly, flyLatch])
+  }, [continuousFly, flyLatch, started, paused])
 
   // pointer-lock mouse look (desktop) — only when the pointer lock setting is on
   useEffect(() => {
@@ -197,7 +198,7 @@ export function PlayerControls({
     }
 
     const tryLock = (attempt = 0) => {
-      if (!started || isTouchDevice()) return
+      if (!started || paused || isTouchDevice()) return
       if (document.pointerLockElement === dom || lockPending.current) return
       lockPending.current = true
       sawPromise.current = false
@@ -263,6 +264,13 @@ export function PlayerControls({
   }, [started, paused, gl, pointerLock, onLockFallback])
 
   useFrame((_, delta) => {
+    if (!started || paused) {
+      keys.current = {}
+      lookDelta.current = { dx: 0, dy: 0 }
+      angVel.current = { x: 0, y: 0 }
+      dragging.current = false
+      return
+    }
     // touch look input (yaw is the guide's job while being led)
     if (!ledRef?.current) yaw.current -= lookDelta.current.dx * 0.004
     pitch.current = THREE.MathUtils.clamp(pitch.current - lookDelta.current.dy * 0.004, -1.2, 1.3)

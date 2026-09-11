@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Volume2, VolumeX, Settings, Bird, Send } from 'lucide-react'
+import { Volume2, VolumeX, Settings, Bird, Send, Menu } from 'lucide-react'
+import { MovementStick } from './controls/movementStick'
 import { audio } from './audio/engine'
 import { VanGoghSky } from './scene/VanGoghSky'
 import { Ground } from './scene/Ground'
@@ -149,7 +150,7 @@ function LanguagePage({
     <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#0d1530]/95 backdrop-blur-sm">
       <button
         onClick={onClose}
-        className="absolute left-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+        className="absolute left-5 top-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
         aria-label="back"
       >
         ‹
@@ -206,7 +207,7 @@ function InstructionsPage({ t, onClose }: { t: (k: LangKey) => string; onClose: 
     <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#0d1530]/95 backdrop-blur-sm">
       <button
         onClick={onClose}
-        className="absolute left-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+        className="absolute left-5 top-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
         aria-label="back"
       >
         ‹
@@ -253,7 +254,7 @@ function MapsPage({
     <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#0d1530]/95 backdrop-blur-sm">
       <button
         onClick={onClose}
-        className="absolute left-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+        className="absolute left-5 top-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
         aria-label="back"
       >
         ‹
@@ -330,7 +331,7 @@ function SettingsPage({
     <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#0d1530]/95 backdrop-blur-sm">
       <button
         onClick={onClose}
-        className="absolute left-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+        className="absolute left-5 top-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
         aria-label="back"
       >
         ‹
@@ -458,15 +459,37 @@ function TouchControls({
   lookDelta,
   fovRef,
   onDoubleTap,
+  showPad,
+  label,
 }: {
   joystick: React.MutableRefObject<{ x: number; y: number }>
   lookDelta: React.MutableRefObject<{ dx: number; dy: number }>
   fovRef: React.MutableRefObject<number>
   onDoubleTap: () => void
+  showPad: boolean
+  label: string
 }) {
+  const stick = useRef(new MovementStick())
+  const pad = useRef<HTMLDivElement>(null)
+  const knob = useRef<HTMLDivElement>(null)
+  const syncStick = useCallback(() => {
+    joystick.current = stick.current.value
+    if (pad.current) pad.current.dataset.active = String(stick.current.active)
+    if (knob.current) {
+      const { x, y } = stick.current.value
+      knob.current.style.transform = `translate(${x * 40}px, ${y * 40}px)`
+    }
+  }, [joystick])
+
   useEffect(() => {
-    let moveId: number | null = null
-    let moveOrigin = { x: 0, y: 0 }
+    if (!showPad) {
+      stick.current.reset()
+      syncStick()
+    }
+  }, [showPad, syncStick])
+
+  useEffect(() => {
+    const movement = stick.current
     let lookId: number | null = null
     let lookLast = { x: 0, y: 0 }
     const pinch = new Map<number, { x: number; y: number }>()
@@ -486,9 +509,9 @@ function TouchControls({
       for (const t of Array.from(e.changedTouches)) {
         const target = t.target as HTMLElement
         if (target.closest('[data-ui]')) continue
-        if (t.clientX < window.innerWidth / 2 && moveId === null) {
-          moveId = t.identifier
-          moveOrigin = { x: t.clientX, y: t.clientY }
+        if (t.clientX < window.innerWidth / 2) {
+          movement.start(`touch:${t.identifier}`, { x: t.clientX, y: t.clientY }, 55)
+          syncStick()
         } else {
           pinch.set(t.identifier, { x: t.clientX, y: t.clientY })
           if (pinch.size === 2) {
@@ -506,15 +529,8 @@ function TouchControls({
 
     const onMove = (e: TouchEvent) => {
       for (const t of Array.from(e.changedTouches)) {
-        if (t.identifier === moveId) {
-          let dx = (t.clientX - moveOrigin.x) / 55
-          let dy = (t.clientY - moveOrigin.y) / 55
-          const l = Math.hypot(dx, dy)
-          if (l > 1) {
-            dx /= l
-            dy /= l
-          }
-          joystick.current = { x: dx, y: dy }
+        if (movement.move(`touch:${t.identifier}`, { x: t.clientX, y: t.clientY })) {
+          syncStick()
         } else if (pinch.has(t.identifier)) {
           pinch.set(t.identifier, { x: t.clientX, y: t.clientY })
           if (pinch.size === 2) {
@@ -533,10 +549,7 @@ function TouchControls({
 
     const onEnd = (e: TouchEvent) => {
       for (const t of Array.from(e.changedTouches)) {
-        if (t.identifier === moveId) {
-          moveId = null
-          joystick.current = { x: 0, y: 0 }
-        }
+        if (movement.end(`touch:${t.identifier}`)) syncStick()
         pinch.delete(t.identifier)
         if (t.identifier === lookId) lookId = null
 
@@ -544,7 +557,7 @@ function TouchControls({
         const target = t.target as HTMLElement
         const dur = performance.now() - tapStart.time
         const moved = Math.hypot(t.clientX - tapStart.x, t.clientY - tapStart.y)
-        if (!target.closest('[data-ui]') && dur < 250 && moved < 12) {
+        if (e.type !== 'touchcancel' && !target.closest('[data-ui]') && dur < 250 && moved < 12) {
           fireTapOnCanvas(t.clientX, t.clientY) // single tap = interact
           const now = performance.now()
           if (now - lastQuickTap.time < 400 && Math.hypot(t.clientX - lastQuickTap.x, t.clientY - lastQuickTap.y) < 60) {
@@ -561,15 +574,67 @@ function TouchControls({
     window.addEventListener('touchmove', onMove, { passive: true })
     window.addEventListener('touchend', onEnd, { passive: true })
     window.addEventListener('touchcancel', onEnd, { passive: true })
+    const reset = () => {
+      movement.reset()
+      syncStick()
+      lookId = null
+      pinch.clear()
+      lookDelta.current = { dx: 0, dy: 0 }
+    }
+    const onVisibility = () => { if (document.hidden) reset() }
+    window.addEventListener('blur', reset)
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
       window.removeEventListener('touchstart', onStart)
       window.removeEventListener('touchmove', onMove)
       window.removeEventListener('touchend', onEnd)
       window.removeEventListener('touchcancel', onEnd)
+      window.removeEventListener('blur', reset)
+      document.removeEventListener('visibilitychange', onVisibility)
+      reset()
     }
-  }, [joystick, lookDelta, fovRef, onDoubleTap])
+  }, [lookDelta, fovRef, onDoubleTap, syncStick])
 
-  return null
+  const releasePad = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (stick.current.end(`pointer:${e.pointerId}`)) syncStick()
+  }
+
+  if (!showPad) return null
+  return (
+    <div
+      ref={pad}
+      data-ui
+      data-movement-pad
+      data-active="false"
+      role="group"
+      aria-label={label}
+      title={label}
+      className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-[max(1.5rem,env(safe-area-inset-left))] z-30 flex h-32 w-32 touch-none items-center justify-center rounded-full border border-[#f5e6bd]/60 bg-[#0d1530]/45 text-[#f5e6bd] opacity-75 transition-opacity data-[active=true]:opacity-100"
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        const rect = e.currentTarget.getBoundingClientRect()
+        const id = `pointer:${e.pointerId}`
+        if (!stick.current.start(id, { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }, 40)) return
+        e.preventDefault()
+        e.currentTarget.setPointerCapture(e.pointerId)
+        stick.current.move(id, { x: e.clientX, y: e.clientY })
+        syncStick()
+      }}
+      onPointerMove={(e) => {
+        if (stick.current.move(`pointer:${e.pointerId}`, { x: e.clientX, y: e.clientY })) syncStick()
+      }}
+      onPointerUp={releasePad}
+      onPointerCancel={releasePad}
+      onLostPointerCapture={releasePad}
+    >
+      <div aria-hidden="true" className="pointer-events-none absolute inset-3 rounded-full border border-[#f5e6bd]/15" />
+      <span aria-hidden="true" className="pointer-events-none absolute top-1.5 text-xs opacity-70">↑</span>
+      <span aria-hidden="true" className="pointer-events-none absolute bottom-1.5 text-xs opacity-70">↓</span>
+      <span aria-hidden="true" className="pointer-events-none absolute left-2 text-xs opacity-70">←</span>
+      <span aria-hidden="true" className="pointer-events-none absolute right-2 text-xs opacity-70">→</span>
+      <div ref={knob} aria-hidden="true" className="pointer-events-none h-12 w-12 rounded-full border border-[#f5e6bd]/70 bg-[#f5e6bd]/20 shadow-[0_2px_12px_rgba(0,0,0,0.15)]" />
+    </div>
+  )
 }
 
 // vertical height slider (round knob on a vertical track), synced with heightRef
@@ -807,7 +872,7 @@ export default function App() {
     showToast(DICT[lang].toastLockFallback ?? DICT.en.toastLockFallback)
   }, [lang, showToast])
 
-  const toggleSlider = () => setSliderVisible((v) => !v)
+  const toggleSlider = useCallback(() => setSliderVisible((v) => !v), [])
 
   // ---- friendship polling + handlers ----
   const friendNames = useMemo(() => Object.fromEntries(friends.map((f) => [f.id, f.name])), [friends])
@@ -1100,6 +1165,14 @@ export default function App() {
     }
   }
 
+  const openMenu = () => {
+    joystick.current = { x: 0, y: 0 }
+    lookDelta.current = { dx: 0, dy: 0 }
+    flyLatch.current = { fwd: 0, strafe: 0 }
+    setPaused(true)
+    if (document.pointerLockElement) document.exitPointerLock()
+  }
+
   const menuOpen = !started || paused
 
   // Enter opens the chat box; ESC closes it
@@ -1324,6 +1397,19 @@ export default function App() {
         <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -ml-1.5 -mt-1.5 h-3 w-3 rounded-full border border-white/70 bg-white/20" />
       )}
 
+      {started && !paused && (
+        <button
+          data-ui
+          type="button"
+          onClick={openMenu}
+          aria-label={t('openMenu')}
+          title={t('openMenu')}
+          className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-30 flex h-12 w-12 touch-manipulation items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-[#0d1530]/40 text-[#f5e6bd] backdrop-blur-sm transition-colors hover:bg-[#f5e6bd]/15 active:bg-[#f5e6bd]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f5e6bd]"
+        >
+          <Menu size={22} strokeWidth={1.7} className="pointer-events-none" aria-hidden="true" />
+        </button>
+      )}
+
       {/* floating perch icons above nearby posts */}
       {started && !paused && !perched && <PerchMarkers markersRef={perchMarkersRef} />}
 
@@ -1343,7 +1429,14 @@ export default function App() {
       {/* touch controls — canvas stays fully clickable */}
       {started && !paused && (
         <>
-          <TouchControls joystick={joystick} lookDelta={lookDelta} fovRef={fovRef} onDoubleTap={toggleSlider} />
+          <TouchControls
+            joystick={joystick}
+            lookDelta={lookDelta}
+            fovRef={fovRef}
+            onDoubleTap={toggleSlider}
+            showPad={isCoarse && !continuousFly && !chatOpen}
+            label={t('movementControl')}
+          />
           <HeightSlider heightRef={heightRef} visible={sliderVisible} />
           {continuousFly && isCoarse && <FlyWheel flyLatch={flyLatch} />}
         </>
@@ -1405,14 +1498,14 @@ export default function App() {
           <div className="absolute left-5 top-5 flex items-center gap-2">
             <button
               onClick={() => setLangPageOpen(true)}
-              className="flex items-center gap-2 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-4 py-2 text-sm text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+              className="flex min-h-11 items-center gap-2 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-4 py-2 text-sm text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
             >
               🌐 {LANGS.find((l) => l.id === lang)?.label}
             </button>
             <button
               onClick={() => setHowToOpen(true)}
               aria-label={t('howToTitle')}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-base text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-base text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
             >
               ?
             </button>
@@ -1420,7 +1513,7 @@ export default function App() {
               onClick={() => setMuted(audio.toggleMute())}
               aria-label={muted ? t('soundOff') : t('soundOn')}
               title={muted ? t('soundOff') : t('soundOn')}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
             >
               {muted ? <VolumeX size={17} strokeWidth={1.8} /> : <Volume2 size={17} strokeWidth={1.8} />}
             </button>
@@ -1428,12 +1521,12 @@ export default function App() {
               onClick={() => setSettingsOpen(true)}
               aria-label={t('settingsTitle')}
               title={t('settingsTitle')}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
             >
               <Settings size={17} strokeWidth={1.8} />
             </button>
           </div>
-          <div className="mb-2 text-5xl">🌾</div>
+          <div className="mb-2 text-5xl [@media(max-height:500px)]:text-4xl">🌾</div>
           <h2
             className={`mb-1 px-4 text-center text-[#f5e6bd] ${
               cjk ? 'text-3xl tracking-[0.3em]' : 'text-4xl tracking-[0.04em]'
@@ -1442,7 +1535,7 @@ export default function App() {
             {t('title')}
           </h2>
           <p className="mb-1 px-4 text-center text-sm tracking-widest text-[#d8c48a]/80">{t('subtitle')}</p>
-          <p className="mb-10 text-xs tracking-[0.5em] text-[#d8c48a]/60">WHEATFIELD · IMMERSIVE</p>
+          <p className="mb-10 text-xs tracking-[0.5em] text-[#d8c48a]/60 [@media(max-height:500px)]:mb-2">WHEATFIELD · IMMERSIVE</p>
           <button
             onClick={enterPainting}
             className={`rounded-full border-2 border-[#f5e6bd] bg-[#f5e6bd]/10 px-10 py-3 text-lg text-[#f5e6bd] transition-all hover:bg-[#f5e6bd] hover:text-[#0d1530] ${
@@ -1451,22 +1544,24 @@ export default function App() {
           >
             {t('enterBtn')}
           </button>
-          <button
-            onClick={() => setMapsPageOpen(true)}
-            className={`mt-4 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-6 py-2 text-sm text-[#f5e6bd]/80 transition-all hover:bg-[#f5e6bd]/10 hover:text-[#f5e6bd] ${
-              cjk ? 'tracking-[0.2em]' : 'tracking-[0.06em]'
-            }`}
-          >
-            🖼️ {t('changeMapsBtn')}
-          </button>
-          <button
-            onClick={() => setFriendsPageOpen(true)}
-            className={`mt-3 flex items-center gap-2 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-6 py-2 text-sm text-[#f5e6bd]/80 transition-all hover:bg-[#f5e6bd]/10 hover:text-[#f5e6bd] ${
-              cjk ? 'tracking-[0.2em]' : 'tracking-[0.06em]'
-            }`}
-          >
-            <Bird size={16} strokeWidth={1.8} /> {t('friendsBtn')}
-          </button>
+          <div className="mt-4 flex flex-col items-center gap-3 [@media(max-height:500px)]:mt-2 [@media(max-height:500px)]:flex-row">
+            <button
+              onClick={() => setMapsPageOpen(true)}
+              className={`min-h-11 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-6 py-2 text-sm text-[#f5e6bd]/80 transition-all hover:bg-[#f5e6bd]/10 hover:text-[#f5e6bd] ${
+                cjk ? 'tracking-[0.2em]' : 'tracking-[0.06em]'
+              }`}
+            >
+              🖼️ {t('changeMapsBtn')}
+            </button>
+            <button
+              onClick={() => setFriendsPageOpen(true)}
+              className={`flex min-h-11 items-center gap-2 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-6 py-2 text-sm text-[#f5e6bd]/80 transition-all hover:bg-[#f5e6bd]/10 hover:text-[#f5e6bd] ${
+                cjk ? 'tracking-[0.2em]' : 'tracking-[0.06em]'
+              }`}
+            >
+              <Bird size={16} strokeWidth={1.8} /> {t('friendsBtn')}
+            </button>
+          </div>
           <footer className="absolute bottom-4 left-5 right-5 text-right leading-relaxed sm:bottom-5 sm:left-auto sm:right-6">
             <p className="text-xs text-[#f5e6bd]/80 sm:text-sm">
               © 2026 Joanna Huang. All rights reserved.

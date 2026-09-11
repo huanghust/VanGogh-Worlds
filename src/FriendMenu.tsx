@@ -230,7 +230,7 @@ export function FriendMenu({
         <button
           onClick={onClose}
           aria-label="close"
-          className="absolute left-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-lg text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+          className="absolute left-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-lg text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
         >
           ‹
         </button>
@@ -391,13 +391,13 @@ export function FriendNaming({
         <div className="flex items-center gap-4">
           <button
             onClick={onSave}
-            className="rounded-full border border-[#f5e6bd] bg-[#f5e6bd]/15 px-6 py-2 text-sm text-[#f5e6bd] transition-all hover:bg-[#f5e6bd] hover:text-[#0d1530]"
+            className="min-h-11 rounded-full border border-[#f5e6bd] bg-[#f5e6bd]/15 px-6 py-2 text-sm text-[#f5e6bd] transition-all hover:bg-[#f5e6bd] hover:text-[#0d1530]"
           >
             {t('friendNameSave')}
           </button>
           <button
             onClick={onLater}
-            className="rounded-full border border-[#f5e6bd]/30 px-6 py-2 text-sm text-[#d8c48a]/70 transition-all hover:bg-[#f5e6bd]/10 hover:text-[#f5e6bd]"
+            className="min-h-11 rounded-full border border-[#f5e6bd]/30 px-6 py-2 text-sm text-[#d8c48a]/70 transition-all hover:bg-[#f5e6bd]/10 hover:text-[#f5e6bd]"
           >
             {t('friendNameLater')}
           </button>

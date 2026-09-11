@@ -3,6 +3,8 @@
 // honorable mention: Van Gogh was Dutch and wrote most of his letters in it.
 
 const en = {
+  openMenu: "Open menu",
+  movementControl: "Drag to move; release to stop",
   title: "Into Van Gogh's Wheatfield",
   subtitle: 'An oil painting you can walk into',
   instrDesktop:
@@ -13,7 +15,7 @@ const en = {
     '✨ Interact: tap the wheat for a gust of wind · tap cypresses to startle sparrows · tap the sky to change the time of day',
   instrChat:
     '💬 Press Enter — or tap your white bird — to talk; your words become a bubble above it · friends online appear as white birds too',
-  instrEsc: '⏸️ Press ESC anytime to return to this menu',
+  instrEsc: "⏸️ Tap ☰ or press ESC to return to this menu",
   howToTitle: 'How to wander',
   changeMapsBtn: 'Change maps',
   mapsPageTitle: 'Choose a painting',
@@ -91,13 +93,15 @@ const en = {
 export type LangKey = keyof typeof en
 
 const zhCN: Record<LangKey, string> = {
+  openMenu: "打开菜单",
+  movementControl: "拖动摇杆移动，松手停止",
   title: '走进梵高的麦田',
   subtitle: '一幅可以走进去的油画',
   instrDesktop: '🖱️ 电脑：点击画面锁定鼠标环视 · W A S D 走动 · Shift 奔跑 · ↑ ↓ 升降视角 · + − 缩放',
   instrTouch: '📱 手机/平板（横屏）：左半屏滑动移动 · 右半屏滑动环视 · 双指捏合缩放 · 轻点互动 · 快速双击唤出高度滑杆',
   instrInteract: '✨ 互动：点击麦浪掀起风 · 点击柏树惊起麻雀 · 点击天空切换晨昏',
   instrChat: '💬 按 Enter（或轻点你的白鸟）说话 —— 文字会化作气泡停在白鸟头顶 · 在线的朋友也会变成白鸟与你同游',
-  instrEsc: '⏸️ 按 ESC 随时回到本菜单',
+  instrEsc: "⏸️ 轻点 ☰ 或按 ESC 回到本菜单",
   howToTitle: '漫游指南',
   changeMapsBtn: '切换画卷',
   mapsPageTitle: '选择一幅画',
@@ -173,13 +177,15 @@ const zhCN: Record<LangKey, string> = {
 }
 
 const zhTW: Record<LangKey, string> = {
+  openMenu: "開啟選單",
+  movementControl: "拖動搖桿移動，鬆手停止",
   title: '走進梵高的麥田',
   subtitle: '一幅可以走進去的油畫',
   instrDesktop: '🖱️ 電腦：點擊畫面鎖定滑鼠環視 · W A S D 走動 · Shift 奔跑 · ↑ ↓ 升降視角 · + − 縮放',
   instrTouch: '📱 手机/平板（橫屏）：左半屏滑動移動 · 右半屏滑動環視 · 雙指捏合縮放 · 輕點互動 · 快速雙擊喚出高度滑桿',
   instrInteract: '✨ 互動：點擊麥浪掀起風 · 點擊柏樹驚起麻雀 · 點擊天空切換晨昏',
   instrChat: '💬 按 Enter（或輕點你的白鳥）說話 —— 文字會化作氣泡停在白鳥頭頂 · 在線的朋友也會變成白鳥與你同遊',
-  instrEsc: '⏸️ 按 ESC 隨時回到本選單',
+  instrEsc: "⏸️ 輕點 ☰ 或按 ESC 回到本選單",
   howToTitle: '漫遊指南',
   changeMapsBtn: '切換畫卷',
   mapsPageTitle: '選擇一幅畫',
@@ -255,13 +261,15 @@ const zhTW: Record<LangKey, string> = {
 }
 
 const ja: Record<LangKey, string> = {
+  openMenu: "メニューを開く",
+  movementControl: "ドラッグで移動、指を離すと停止",
   title: 'ゴッホの麦畑へ',
   subtitle: '歩き回れる油絵の世界',
   instrDesktop: '🖱️ PC：クリックでマウスをロックして見回す · W A S D で移動 · Shift で走る · ↑ ↓ 視点の高さ · + − ズーム',
   instrTouch: '📱 スマホ/タブレット（横画面）：左半分スワイプで移動 · 右半分スワイプで見回す · ピンチでズーム · タップで操作 · ダブルタップで高さスライダー',
   instrInteract: '✨ 操作：麦をタップで風 · 糸杉をタップでスズメが飛ぶ · 空をタップで時間帯を切替',
   instrChat: '💬 Enter キー（または白い鳥をタップ）で話す —— 言葉は鳥の頭上の泡になる · オンラインの友達も白い鳥で現れます',
-  instrEsc: '⏸️ ESC でいつでもこのメニューに戻る',
+  instrEsc: "⏸️ ☰ をタップ、または ESC でメニューに戻る",
   howToTitle: '遊び方',
   changeMapsBtn: '絵を変える',
   mapsPageTitle: '絵を選ぶ',
@@ -337,13 +345,15 @@ const ja: Record<LangKey, string> = {
 }
 
 const es: Record<LangKey, string> = {
+  openMenu: "Abrir menú",
+  movementControl: "Arrastra para moverte; suelta para parar",
   title: 'En el trigal de Van Gogh',
   subtitle: 'Un óleo en el que puedes caminar',
   instrDesktop: '🖱️ Ordenador: haz clic para fijar el ratón y mirar · W A S D para caminar · Shift para correr · ↑ ↓ altura de vista · + − zoom',
   instrTouch: '📱 Móvil/tableta (horizontal): desliza en la mitad izquierda para moverte · en la derecha para mirar · pellizca para zoom · toca para interactuar · doble toque para el deslizador de altura',
   instrInteract: '✨ Interactúa: toca el trigo para una ráfaga de viento · toca los cipreses para espantar gorriones · toca el cielo para cambiar la hora',
   instrChat: '💬 Pulsa Enter —o toca tu pájaro blanco— para hablar; tus palabras serán una burbuja sobre él · los amigos en línea también aparecen como pájaros blancos',
-  instrEsc: '⏸️ Pulsa ESC en cualquier momento para volver a este menú',
+  instrEsc: "⏸️ Toca ☰ o pulsa ESC para volver a este menú",
   howToTitle: 'Cómo pasear',
   changeMapsBtn: 'Cambiar de cuadro',
   mapsPageTitle: 'Elige un cuadro',
@@ -419,13 +429,15 @@ const es: Record<LangKey, string> = {
 }
 
 const fr: Record<LangKey, string> = {
+  openMenu: "Ouvrir le menu",
+  movementControl: "Glissez pour avancer ; relâchez pour arrêter",
   title: 'Dans les blés de Van Gogh',
   subtitle: "Une peinture à l'huile où l'on peut marcher",
   instrDesktop: '🖱️ Ordinateur : cliquez pour verrouiller la souris et regarder · W A S D pour marcher · Shift pour courir · ↑ ↓ hauteur de vue · + − zoom',
   instrTouch: '📱 Téléphone / tablette (paysage) : glissez sur la moitié gauche pour bouger · sur la droite pour regarder · pincez pour zoomer · touchez pour interagir · double-tap pour le curseur de hauteur',
   instrInteract: "✨ Interactions : touchez les blés pour une rafale de vent · les cyprès pour envoler les moineaux · le ciel pour changer l'heure",
   instrChat: "💬 Entrée — ou touchez votre oiseau blanc — pour parler ; vos mots deviennent une bulle au-dessus de lui · les amis en ligne apparaissent aussi en oiseaux blancs",
-  instrEsc: '⏸️ Échap à tout moment pour revenir à ce menu',
+  instrEsc: "⏸️ Touchez ☰ ou appuyez sur Échap pour revenir au menu",
   howToTitle: 'Comment flâner',
   changeMapsBtn: 'Changer de tableau',
   mapsPageTitle: 'Choisissez un tableau',
@@ -501,13 +513,15 @@ const fr: Record<LangKey, string> = {
 }
 
 const nl: Record<LangKey, string> = {
+  openMenu: "Menu openen",
+  movementControl: "Sleep om te bewegen; laat los om te stoppen",
   title: 'In Van Goghs Korenveld',
   subtitle: 'Een olieverfschilderij om in rond te lopen',
   instrDesktop: '🖱️ Computer: klik om de muis vast te zetten en rond te kijken · W A S D om te lopen · Shift om te rennen · ↑ ↓ kijkhoogte · + − zoomen',
   instrTouch: '📱 Telefoon / tablet (liggend): veeg links om te bewegen · veeg rechts om rond te kijken · knijp om te zoomen · tik voor interactie · dubbeltik voor de hoogteschuif',
   instrInteract: '✨ Interactie: tik op het koren voor een windvlaag · tik op cipressen om mussen op te jagen · tik op de lucht voor een ander tijdstip',
   instrChat: '💬 Enter — of tik op je witte vogel — om te praten; je woorden worden een bubbel erboven · vrienden die online zijn verschijnen ook als witte vogels',
-  instrEsc: '⏸️ Druk op ESC om altijd naar dit menu terug te gaan',
+  instrEsc: "⏸️ Tik op ☰ of druk op ESC om terug te gaan naar dit menu",
   howToTitle: 'Zo dwaal je',
   changeMapsBtn: 'Van schilderij wisselen',
   mapsPageTitle: 'Kies een schilderij',
@@ -583,13 +597,15 @@ const nl: Record<LangKey, string> = {
 }
 
 const de: Record<LangKey, string> = {
+  openMenu: "Menü öffnen",
+  movementControl: "Zum Bewegen ziehen; zum Anhalten loslassen",
   title: 'In Van Goghs Weizenfeld',
   subtitle: 'Ein Ölgemälde, in das man hineinspazieren kann',
   instrDesktop: '🖱️ Computer: Klicken, um die Maus zu fixieren und umzusehen · W A S D zum Gehen · Shift zum Rennen · ↑ ↓ Sichthöhe · + − Zoom',
   instrTouch: '📱 Handy / Tablet (Querformat): linke Hälfte wischen zum Bewegen · rechte Hälfte wischen zum Umsehen · mit zwei Fingern zoomen · tippen für Interaktion · doppeltippen für den Höhenregler',
   instrInteract: '✨ Interaktion: Tippe aufs Weizenfeld für einen Windstoß · auf Zypressen, um Spatzen aufzuscheuchen · auf den Himmel, um die Tageszeit zu wechseln',
   instrChat: '💬 Enter — oder tippe auf deinen weißen Vogel — zum Sprechen; deine Worte werden eine Blase über ihm · Freunde, die online sind, erscheinen ebenfalls als weiße Vögel',
-  instrEsc: '⏸️ ESC jederzeit für dieses Menü',
+  instrEsc: "⏸️ Tippe auf ☰ oder drücke ESC, um zum Menü zurückzukehren",
   howToTitle: 'So wanderst du',
   changeMapsBtn: 'Bild wechseln',
   mapsPageTitle: 'Wähle ein Gemälde',
