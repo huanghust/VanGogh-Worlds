@@ -5,6 +5,7 @@ import type { MapId } from './maps'
 import { strokeTexture } from './paint'
 
 const vertexShader = /* glsl */ `
+#include <fog_pars_vertex>
 uniform float uAuvers;
 uniform float uCrow;
 varying vec2 vXZ;
@@ -43,11 +44,14 @@ void main() {
   }
   vXZ = pos.xz;
   vH = pos.y;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+  vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
 }
 `
 
 const fragmentShader = /* glsl */ `
+#include <fog_pars_fragment>
 uniform vec3 uDim;
 uniform float uAuvers;
 uniform float uCrow;
@@ -188,6 +192,11 @@ void main() {
   col *= 0.80 + sk1 * 0.34 + sk2 * 0.14;
 
   gl_FragColor = vec4(col * uDim, 1.0);
+  #include <fog_fragment>
+  #ifdef USE_FOG
+    // A little more mist over the field, without thickening the mountains.
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, 0.06);
+  #endif
 }
 `
 
@@ -225,6 +234,7 @@ export function Ground({
 
   const uniforms = useMemo(
     () => ({
+      ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
       uDim: { value: new THREE.Vector3(1, 1, 1) },
       uAuvers: { value: map === 'auvers' ? 1 : 0 },
       uCrow: { value: map === 'crowfield' ? 1 : 0 },
@@ -239,8 +249,9 @@ export function Ground({
         vertexShader,
         fragmentShader,
         uniforms,
+        fog: map === 'crowfield',
       }),
-    [uniforms]
+    [uniforms, map]
   )
 
   useFrame((_, delta) => {

@@ -1099,14 +1099,15 @@ export default function App() {
   }[skyMode] as { amb: [string, number]; d1: [string, number]; d2: [string, number]; fog: string; dim: [number, number, number] }
   dimRef.current = LIGHTING.dim
 
-  // crowfield wears a white-blue mist that thickens with distance — near
-  // stays crisp, the far world dissolves (the storm painting's depth)
+  // The storm's mist reaches the foreground too. Starting its fade behind
+  // the camera gives nearby wheat/ground a light veil; the long fade keeps
+  // distant hills visible. The sky uses this same color for its own haze.
   const fogColor =
     map === 'crowfield'
       ? { day: '#c3cede', dusk: '#9b92b8', night: '#1e2a44' }[skyMode]
       : LIGHTING.fog
-  const fogNear = map === 'crowfield' ? 35 : 90
-  const fogFar = map === 'crowfield' ? 160 : 320
+  const fogNear = map === 'crowfield' ? -90 : 90
+  const fogFar = map === 'crowfield' ? 280 : 320
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#101a33] font-serif">

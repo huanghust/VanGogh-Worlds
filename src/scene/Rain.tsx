@@ -10,10 +10,11 @@ const BOX = { x: 70, y: 30, z: 70 }
 const SLANT = 0.14 // matches the wheat's constant lean
 const FALL = 16 // m/s
 const DRIFT = 2.6 // m/s sideways, wind-blown
+const DROP_WIDTH = 0.024 // twice the original 0.012 in both horizontal axes
 
 export function Rain() {
   const mesh = useMemo(() => {
-    const geo = new THREE.BoxGeometry(0.012, 0.55, 0.012)
+    const geo = new THREE.BoxGeometry(DROP_WIDTH, 0.55, DROP_WIDTH)
     const mat = new THREE.MeshBasicMaterial({
       color: '#9fb4d8',
       transparent: true,

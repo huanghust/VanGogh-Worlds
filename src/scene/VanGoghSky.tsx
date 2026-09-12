@@ -5,11 +5,13 @@ import type { MapId } from './maps'
 import { paintSky } from './skyPainter'
 
 const vertexShader = /* glsl */ `
+#include <fog_pars_vertex>
 varying vec3 vDir;
 void main() {
   vDir = normalize(position);
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  gl_Position = projectionMatrix * mv;
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
 }
 `
 
@@ -19,6 +21,7 @@ void main() {
 // breathing wobble so the painting never sits dead still.
 const frag = /* glsl */ `
 precision highp float;
+#include <fog_pars_fragment>
 varying vec3 vDir;
 uniform float uTime;
 uniform float uDusk;
@@ -70,6 +73,14 @@ void main() {
   float star = step(0.9975, hash(floor(d.xz / max(d.y, 0.05) * 60.0)));
   col += vec3(1.0, 0.95, 0.7) * star * max(uDusk, uNight) * smoothstep(0.15, 0.5, h) * (0.6 + 0.4 * sin(uTime * 2.0 + hash(floor(d.xz * 60.0)) * 20.0));
 
+  #ifdef USE_FOG
+    // A sky dome is always far away: ordinary distance fog would erase the
+    // clouds. Use the scene's mist color with a bounded veil instead, heavier
+    // at the horizon and still present overhead, so sky and land share the air.
+    float mist = mix(0.64, 0.28, smoothstep(-0.08, 0.85, d.y));
+    col = mix(col, fogColor, mist);
+  #endif
+
   gl_FragColor = vec4(col, 1.0);
 }
 `
@@ -90,6 +101,7 @@ export function VanGoghSky({
 
   const uniforms = useMemo(
     () => ({
+      ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
       uTime: { value: 0 },
       uDusk: { value: 0 },
       uNight: { value: 0 },
@@ -117,13 +129,16 @@ export function VanGoghSky({
       }}
     >
       <sphereGeometry args={[400, 48, 32]} />
+      {/* Switching paintings changes the shader's USE_FOG compilation flag. */}
       <shaderMaterial
+        key={map}
         ref={matRef}
         side={THREE.BackSide}
         depthWrite={false}
         vertexShader={vertexShader}
         fragmentShader={frag}
         uniforms={uniforms}
+        fog={map === 'crowfield'}
       />
     </mesh>
   )

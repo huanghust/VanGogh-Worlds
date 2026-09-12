@@ -22,6 +22,16 @@ const RANGES = [
   { rMin: 185, rMax: 235, hMin: 42, hMax: 72, colors: ['#45416a', '#4f4a76', '#565178'] },
 ]
 
+// Retain 85% of the usual fog on the rocky backdrop so its painted detail
+// shows through. Keep Three's fog calculation and day/night colors intact.
+function softenMountainMist(shader: Parameters<THREE.Material['onBeforeCompile']>[0]) {
+  shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `
+    vec3 clearMountainColor = gl_FragColor.rgb;
+    #include <fog_fragment>
+    gl_FragColor.rgb = mix(clearMountainColor, gl_FragColor.rgb, 0.85);
+  `)
+}
+
 function ridgeCrags(): Crag[] {
   const out: Crag[] = []
   RANGES.forEach((range, ri) => {
@@ -53,6 +63,7 @@ export function Mountains() {
     const geo = new THREE.IcosahedronGeometry(1, 1)
     const stroke = neutralStroke(34)
     const mat = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true, map: stroke.map, bumpMap: stroke.bump, bumpScale: 0.1 })
+    mat.onBeforeCompile = softenMountainMist
     const m = new THREE.InstancedMesh(geo, mat, 26)
     m.frustumCulled = false
     const dummy = new THREE.Object3D()
@@ -79,6 +90,7 @@ export function Mountains() {
     const geo = new THREE.IcosahedronGeometry(1, 0)
     const stroke = neutralStroke(35)
     const mat = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true, map: stroke.map, bumpMap: stroke.bump, bumpScale: 0.05 })
+    mat.onBeforeCompile = softenMountainMist
     const m = new THREE.InstancedMesh(geo, mat, 34)
     m.frustumCulled = false
     const dummy = new THREE.Object3D()
@@ -107,6 +119,7 @@ export function Mountains() {
         <mesh key={i} position={c.pos} scale={c.scale} rotation={[0, c.rotY, c.lean]}>
           <icosahedronGeometry args={[1, 1]} />
           <meshStandardMaterial
+            onBeforeCompile={softenMountainMist}
             color={c.color}
             roughness={1}
             flatShading

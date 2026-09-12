@@ -142,6 +142,7 @@ function makeFlowerTexture(): THREE.CanvasTexture {
 }
 
 const vertexShader = /* glsl */ `
+#include <fog_pars_vertex>
 uniform float uTime;
 uniform float uGustTime;
 uniform vec2 uGustOrigin;
@@ -192,11 +193,14 @@ void main() {
   world.z += (sway * 0.6 + lean * 0.3 + crosswind) * h * h;
   vShade = 0.85 + 0.3 * h + wave * 0.5 + bmask * exp(-bd * 0.8) * 0.25 + lean * 0.12;
 
-  gl_Position = projectionMatrix * viewMatrix * modelMatrix * world;
+  vec4 mvPosition = viewMatrix * modelMatrix * world;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
 }
 `
 
 const fragmentShader = /* glsl */ `
+#include <fog_pars_fragment>
 uniform sampler2D uMap;
 uniform vec3 uDim;
 varying vec2 vUv;
@@ -205,11 +209,17 @@ void main() {
   vec4 tex = texture2D(uMap, vUv);
   if (tex.a < 0.4) discard;
   gl_FragColor = vec4(tex.rgb * vShade * uDim, 1.0);
+  #include <fog_fragment>
+  #ifdef USE_FOG
+    // Match the extra veil on the ground, including the roadside grass.
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, 0.06);
+  #endif
 }
 `
 
-function makeFieldMaterial(texture: THREE.CanvasTexture, wind = 0) {
+function makeFieldMaterial(texture: THREE.CanvasTexture, wind = 0, fog = false) {
   const uniforms = {
+    ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
     uTime: { value: 0 },
     uGustTime: { value: -100 },
     uGustOrigin: { value: new THREE.Vector2(0, 0) },
@@ -223,6 +233,7 @@ function makeFieldMaterial(texture: THREE.CanvasTexture, wind = 0) {
     vertexShader,
     fragmentShader,
     uniforms,
+    fog,
     side: THREE.DoubleSide,
     transparent: false,
   })
@@ -255,7 +266,7 @@ export function WheatField({
   }, [map])
 
   const { uniforms, material } = useMemo(
-    () => makeFieldMaterial(texture, map === 'crowfield' ? 1 : 0),
+    () => makeFieldMaterial(texture, map === 'crowfield' ? 1 : 0, map === 'crowfield'),
     [texture, map]
   )
 
@@ -273,7 +284,7 @@ export function WheatField({
     if (map !== 'crowfield') return null
     const g = new THREE.PlaneGeometry(0.55, 0.85, 1, 2)
     g.translate(0, 0.425, 0)
-    return { geometry: g, ...makeFieldMaterial(makeGrassTexture(), 0.45) } // short tufts catch less storm than the wheat — bent, not flattened across the dirt
+    return { geometry: g, ...makeFieldMaterial(makeGrassTexture(), 0.45, true) } // short tufts catch less storm than the wheat — bent, not flattened across the dirt
   }, [map])
 
   const mesh = useMemo(() => {
