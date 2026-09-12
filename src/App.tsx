@@ -3,6 +3,11 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Volume2, VolumeX, Settings, Bird, Send, Menu } from 'lucide-react'
 import { MovementStick } from './controls/movementStick'
+import { FlightButtons } from './controls/FlightButtons'
+import { HeldDirection } from './controls/heldDirection'
+import { useChatViewport } from './controls/useChatViewport'
+import { watchPointerUnlock } from './controls/pointerUnlock'
+import { useTouchDevice } from './hooks/use-touch-device'
 import { audio } from './audio/engine'
 import { VanGoghSky } from './scene/VanGoghSky'
 import { Ground } from './scene/Ground'
@@ -18,7 +23,7 @@ import { Memorial } from './scene/Memorial'
 import { Mountains } from './scene/Mountains'
 import { Meadows } from './scene/Meadows'
 import { Rain } from './scene/Rain'
-import { PlayerControls, MIN_H, MAX_H, DEFAULT_H } from './scene/PlayerControls'
+import { PlayerControls, DEFAULT_H } from './scene/PlayerControls'
 import { RemoteBirds } from './scene/RemoteBirds'
 import { LeadFollower } from './scene/LeadFollower'
 import { PerchController } from './scene/PerchController'
@@ -421,51 +426,21 @@ function FlyWheel({ flyLatch }: { flyLatch: React.MutableRefObject<{ fwd: number
   )
 }
 
-// phones / iPads must be played sideways — show a rotate prompt in portrait
-function RotateOverlay({ t }: { t: (k: LangKey) => string }) {
-  const [portrait, setPortrait] = useState(
-    () => window.matchMedia('(pointer: coarse)').matches && window.innerHeight > window.innerWidth
-  )
-  useEffect(() => {
-    const check = () =>
-      setPortrait(window.matchMedia('(pointer: coarse)').matches && window.innerHeight > window.innerWidth)
-    window.addEventListener('resize', check)
-    window.addEventListener('orientationchange', check)
-    return () => {
-      window.removeEventListener('resize', check)
-      window.removeEventListener('orientationchange', check)
-    }
-  }, [])
-  if (!portrait) return null
-  return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0d1530] text-center">
-      <div className="mb-6 text-6xl" style={{ animation: 'rotHint 1.6s ease-in-out infinite' }}>
-        📱
-      </div>
-      <p className="mb-2 text-xl tracking-[0.3em] text-[#f5e6bd]">{t('rotateTitle')}</p>
-      <p className="text-sm text-[#d8c48a]/70">{t('rotateSub')}</p>
-      <style>{`@keyframes rotHint { 0%,100% { transform: rotate(0deg) } 50% { transform: rotate(-90deg) } }`}</style>
-    </div>
-  )
-}
-
 // touch controls, Sky-COTL style:
 //   left half  — floating swipe pad: swipe up/down/left/right = move fwd/back/left/right
 //   right half — swipe = look around, two-finger pinch = zoom
-//   single quick tap = interact · two quick taps = toggle height slider
+//   single quick tap = interact · lower-right buttons control height
 // everything is handled at window level so the canvas stays fully clickable
 function TouchControls({
   joystick,
   lookDelta,
   fovRef,
-  onDoubleTap,
   showPad,
   label,
 }: {
   joystick: React.MutableRefObject<{ x: number; y: number }>
   lookDelta: React.MutableRefObject<{ dx: number; dy: number }>
   fovRef: React.MutableRefObject<number>
-  onDoubleTap: () => void
   showPad: boolean
   label: string
 }) {
@@ -495,7 +470,6 @@ function TouchControls({
     const pinch = new Map<number, { x: number; y: number }>()
     let pinchDist = 0
     let tapStart = { time: 0, x: 0, y: 0 }
-    let lastQuickTap = { time: 0, x: 0, y: 0 }
 
     const fireTapOnCanvas = (x: number, y: number) => {
       const canvas = document.querySelector('canvas')
@@ -559,13 +533,6 @@ function TouchControls({
         const moved = Math.hypot(t.clientX - tapStart.x, t.clientY - tapStart.y)
         if (e.type !== 'touchcancel' && !target.closest('[data-ui]') && dur < 250 && moved < 12) {
           fireTapOnCanvas(t.clientX, t.clientY) // single tap = interact
-          const now = performance.now()
-          if (now - lastQuickTap.time < 400 && Math.hypot(t.clientX - lastQuickTap.x, t.clientY - lastQuickTap.y) < 60) {
-            onDoubleTap() // two quick taps = toggle slider
-            lastQuickTap = { time: 0, x: 0, y: 0 }
-          } else {
-            lastQuickTap = { time: now, x: t.clientX, y: t.clientY }
-          }
         }
       }
     }
@@ -593,7 +560,7 @@ function TouchControls({
       document.removeEventListener('visibilitychange', onVisibility)
       reset()
     }
-  }, [lookDelta, fovRef, onDoubleTap, syncStick])
+  }, [lookDelta, fovRef, syncStick])
 
   const releasePad = (e: React.PointerEvent<HTMLDivElement>) => {
     if (stick.current.end(`pointer:${e.pointerId}`)) syncStick()
@@ -637,82 +604,12 @@ function TouchControls({
   )
 }
 
-// vertical height slider (round knob on a vertical track), synced with heightRef
-function HeightSlider({ heightRef, visible }: { heightRef: React.MutableRefObject<number>; visible: boolean }) {
-  const track = useRef<HTMLDivElement>(null)
-  const knob = useRef<HTMLDivElement>(null)
-
-  // keep knob position in sync (keyboard ↑↓ also changes heightRef)
-  useEffect(() => {
-    let raf = 0
-    const sync = () => {
-      if (knob.current) {
-        const t = (heightRef.current - MIN_H) / (MAX_H - MIN_H)
-        knob.current.style.bottom = `${t * 100}%`
-      }
-      raf = requestAnimationFrame(sync)
-    }
-    raf = requestAnimationFrame(sync)
-    return () => cancelAnimationFrame(raf)
-  }, [heightRef, visible])
-
-  useEffect(() => {
-    if (!visible) return
-    let dragging = false
-    const setFromY = (clientY: number) => {
-      if (!track.current) return
-      const rect = track.current.getBoundingClientRect()
-      const t = 1 - (clientY - rect.top) / rect.height
-      heightRef.current = MIN_H + Math.min(1, Math.max(0, t)) * (MAX_H - MIN_H)
-    }
-    const onDown = (e: PointerEvent) => {
-      if (!(e.target as HTMLElement).closest('[data-height-slider]')) return
-      dragging = true
-      setFromY(e.clientY)
-      e.preventDefault()
-    }
-    const onMove = (e: PointerEvent) => {
-      if (dragging) setFromY(e.clientY)
-    }
-    const onUp = () => {
-      dragging = false
-    }
-    window.addEventListener('pointerdown', onDown)
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    return () => {
-      window.removeEventListener('pointerdown', onDown)
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-    }
-  }, [visible, heightRef])
-
-  if (!visible) return null
-  return (
-    <div
-      data-ui
-      data-height-slider
-      className="absolute right-8 top-1/2 z-30 flex h-72 w-14 -translate-y-1/2 touch-none items-center justify-center rounded-2xl border-2 border-white/40 bg-black/25 backdrop-blur-sm"
-    >
-      <div ref={track} className="relative h-56 w-1 rounded-full bg-white/50">
-        <div
-          ref={knob}
-          className="absolute left-1/2 h-9 w-9 -translate-x-1/2 translate-y-1/2 rounded-full border-2 border-white/70 bg-white/25"
-        />
-      </div>
-      <span className="absolute -top-7 text-xs text-white/70">高</span>
-      <span className="absolute -bottom-7 text-xs text-white/70">低</span>
-    </div>
-  )
-}
-
 export default function App() {
   const [started, setStarted] = useState(() => new URLSearchParams(window.location.search).has('autostart'))
   const [paused, setPaused] = useState(false)
   const initNight = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('night')
   const [skyMode, setSkyMode] = useState<'day' | 'dusk' | 'night'>(initNight ? 'night' : 'day')
   const [toast, setToast] = useState<string | null>(null)
-  const [sliderVisible, setSliderVisible] = useState(false)
   const modeRef = useRef({ dusk: 0, night: initNight ? 1 : 0 })
   const gust = useRef({ origin: [0, 0] as [number, number], time: 0 })
   const burstSignal = useRef({ t: 0, pos: [0, 14, 0] as [number, number, number] })
@@ -720,6 +617,8 @@ export default function App() {
   const lookDelta = useRef({ dx: 0, dy: 0 })
   const flyLatch = useRef({ fwd: 0, strafe: 0 }) // continuous-flying latched direction
   const [chatOpen, setChatOpen] = useState(false)
+  const chatViewport = useChatViewport(chatOpen)
+  const verticalInput = useRef(new HeldDirection())
   const [chatText, setChatText] = useState('')
   const [bubble, setBubble] = useState<string | null>(null)
   const bubbleTimer = useRef<number | undefined>(undefined)
@@ -852,7 +751,7 @@ export default function App() {
   useEffect(() => {
     if (lead?.ledBy && perch) setPerch(null) // holding hands beats sitting still
   }, [lead, perch])
-  const isCoarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  const hasTouch = useTouchDevice()
   const t = (k: LangKey) => DICT[lang][k] ?? DICT.en[k]
   const cjk = isCjk(lang)
   const setLang = (l: Lang) => {
@@ -872,7 +771,6 @@ export default function App() {
     showToast(DICT[lang].toastLockFallback ?? DICT.en.toastLockFallback)
   }, [lang, showToast])
 
-  const toggleSlider = useCallback(() => setSliderVisible((v) => !v), [])
 
   // ---- friendship polling + handlers ----
   const friendNames = useMemo(() => Object.fromEntries(friends.map((f) => [f.id, f.name])), [friends])
@@ -1088,33 +986,27 @@ export default function App() {
     }
   }, [namingQueue, nameInput, closeNaming, showToast, t])
 
-  // desktop: double-click also toggles the height slider
-  useEffect(() => {
-    const onDbl = () => toggleSlider()
-    window.addEventListener('dblclick', onDbl)
-    return () => window.removeEventListener('dblclick', onDbl)
+  const openMenu = useCallback(() => {
+    joystick.current = { x: 0, y: 0 }
+    lookDelta.current = { dx: 0, dy: 0 }
+    flyLatch.current = { fwd: 0, strafe: 0 }
+    verticalInput.current.reset()
+    setPaused(true)
+    if (document.pointerLockElement) document.exitPointerLock()
   }, [])
 
-  // ESC opens the menu frame, two complementary paths:
-  //   · while locked, the browser consumes ESC to release the lock — the page
-  //     never sees the key, so the pointerlockchange below is what opens it
-  //   · while NOT locked (drag mode, or lock refused by the environment), the
-  //     keydown reaches the page and opens the menu directly
+  // Escape can be consumed by the browser. Observe a real unlock transition as
+  // well as the key itself, including laptops with both a mouse and touchscreen.
   useEffect(() => {
-    const onLockChange = () => {
-      if (!document.pointerLockElement && started && !window.matchMedia('(pointer: coarse)').matches) {
-        setPaused(true)
-      }
-    }
-    document.addEventListener('pointerlockchange', onLockChange)
-    return () => document.removeEventListener('pointerlockchange', onLockChange)
-  }, [started])
+    return watchPointerUnlock(document, () => {
+      if (started && !chatOpen) openMenu()
+    })
+  }, [started, chatOpen, openMenu])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return // Esc in chat cancels typing
-      if (document.pointerLockElement) return // locked: browser handles ESC, see above
       if (e.key !== 'Escape') return
       // friend UI takes priority over the pause menu
       if (naming) {
@@ -1131,13 +1023,11 @@ export default function App() {
         setFriendTarget(null)
         return
       }
-      if (started && !paused && !window.matchMedia('(pointer: coarse)').matches) {
-        setPaused(true)
-      }
+      if (started && !paused) openMenu()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [started, paused, naming, friendConfirm, friendTarget, closeNaming, answerFriendReq, answerLeadReq])
+  }, [started, paused, naming, friendConfirm, friendTarget, closeNaming, answerFriendReq, answerLeadReq, openMenu])
 
   // turning pointer lock off while locked must actually release the mouse
   useEffect(() => {
@@ -1153,32 +1043,34 @@ export default function App() {
     // the click's transient activation is still valid, and having a single place
     // that requests the lock avoids double-request races
     if (window.matchMedia('(pointer: coarse)').matches) {
-      // mobile/tablet: try to force landscape (needs fullscreen; iOS may refuse — the rotate overlay covers that)
+      // Use the available screen while allowing either portrait or landscape.
       ;(async () => {
         try {
           await document.documentElement.requestFullscreen?.()
-          await (screen.orientation as unknown as { lock?: (o: string) => Promise<void> }).lock?.('landscape')
+          screen.orientation?.unlock?.()
         } catch {
-          /* not supported — RotateOverlay handles it */
+          /* Fullscreen is optional; both orientations work in the browser too. */
         }
       })()
     }
   }
 
-  const openMenu = () => {
+  const menuOpen = !started || paused
+
+  useEffect(() => {
+    if (!chatOpen) return
     joystick.current = { x: 0, y: 0 }
     lookDelta.current = { dx: 0, dy: 0 }
     flyLatch.current = { fwd: 0, strafe: 0 }
-    setPaused(true)
+    verticalInput.current.reset()
     if (document.pointerLockElement) document.exitPointerLock()
-  }
-
-  const menuOpen = !started || paused
+  }, [chatOpen])
 
   // Enter opens the chat box; ESC closes it
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!started || paused) return
+      if (e.defaultPrevented || (e.target as HTMLElement)?.closest?.('button, input, textarea, [contenteditable="true"]')) return
       if (e.key === 'Enter' && !chatOpen) {
         e.preventDefault()
         setChatText('')
@@ -1256,212 +1148,438 @@ export default function App() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#101a33] font-serif">
-      <Canvas
-        camera={{ fov: 70, near: 0.1, far: 900, position: [0, DEFAULT_H, 10] }}
-        dpr={[1, 1.75]} // cap retina render scale — full-dpr fills 4x pixels for no visible gain
-        onCreated={({ gl }) => {
-          gl.setClearColor('#101a33')
-        }}
-      >
-        <fog attach="fog" args={[fogColor, fogNear, fogFar]} />
-        <ambientLight intensity={LIGHTING.amb[1]} color={LIGHTING.amb[0]} />
-        <directionalLight position={[40, 60, -50]} intensity={LIGHTING.d1[1]} color={LIGHTING.d1[0]} />
-        <directionalLight position={[-30, 40, 60]} intensity={LIGHTING.d2[1]} color={LIGHTING.d2[0]} />
+      <div ref={chatViewport.scene} data-scene-viewport className="fixed left-0 top-0 h-full w-full">
+        <Canvas
+          camera={{ fov: 70, near: 0.1, far: 900, position: [0, DEFAULT_H, 10] }}
+          dpr={[1, 1.75]} // cap retina render scale — full-dpr fills 4x pixels for no visible gain
+          onCreated={({ gl }) => {
+            gl.setClearColor('#101a33')
+          }}
+        >
+          <fog attach="fog" args={[fogColor, fogNear, fogFar]} />
+          <ambientLight intensity={LIGHTING.amb[1]} color={LIGHTING.amb[0]} />
+          <directionalLight position={[40, 60, -50]} intensity={LIGHTING.d1[1]} color={LIGHTING.d1[0]} />
+          <directionalLight position={[-30, 40, 60]} intensity={LIGHTING.d2[1]} color={LIGHTING.d2[0]} />
 
-        <VanGoghSky modeRef={modeRef} onSunClick={cycleSky} map={map} />
-        <group key={map}>
-          <Ground dimRef={dimRef} map={map} />
-          <WheatField
-            gust={gust.current}
-            dimRef={dimRef}
+          <VanGoghSky modeRef={modeRef} onSunClick={cycleSky} map={map} />
+          <group key={map}>
+            <Ground dimRef={dimRef} map={map} />
+            <WheatField
+              gust={gust.current}
+              dimRef={dimRef}
+              map={map}
+              onClickWheat={(x, z) => {
+                gust.current = { origin: [x, z], time: performance.now() }
+                audio.gust()
+                showToast(t('toastWind'))
+              }}
+            />
+            {map === 'wheatfield' ? (
+              <>
+                <CypressTrees
+                  onBurst={(pos) => {
+                    burstSignal.current = { t: performance.now(), pos }
+                    audio.sparrowBurst()
+                    showToast(t('toastSparrows'))
+                  }}
+                />
+                <HillsAndVillage />
+                <Fences map={map} />
+              </>
+            ) : map === 'auvers' ? (
+              <>
+                <Hedges />
+                <Meadows />
+              </>
+            ) : (
+              // the crow painting has no village, cypress or hedges — just the
+              // field, the three roads and the storm. A ring of boulders marks
+              // the field's rim (perch spots), and where the middle road dies:
+              // the painter's hat and tools. Rain that never stops.
+              <>
+                <Boulders />
+                <Mountains />
+                <Memorial />
+                <Rain />
+              </>
+            )}
+          </group>
+          <Sparrows burstSignal={burstSignal.current} modeRef={modeRef} crow={map === 'crowfield'} />
+          <BirdAvatar
+            bubble={bubble}
+            presenceRef={presenceRef}
+            moveRef={moveRef}
+            perchedAt={perched ? perch : null}
+            onTap={
+              hasTouch
+                ? () => {
+                    if (chatOpen) return
+                    setChatText('')
+                    setChatOpen(true)
+                  }
+                : undefined
+            }
+          />
+          <RemoteBirds
+            started={started}
             map={map}
-            onClickWheat={(x, z) => {
-              gust.current = { origin: [x, z], time: performance.now() }
-              audio.gust()
-              showToast(t('toastWind'))
+            friendNames={friendNames}
+            birdRefs={birdRefs}
+            playersRef={remotePlayersRef}
+            freshnessRef={freshnessRef}
+            blocked={blocked}
+            onSelect={(p) => {
+              if (chatOpen) setChatOpen(false)
+              setFriendTarget(p)
             }}
           />
-          {map === 'wheatfield' ? (
-            <>
-              <CypressTrees
-                onBurst={(pos) => {
-                  burstSignal.current = { t: performance.now(), pos }
-                  audio.sparrowBurst()
-                  showToast(t('toastSparrows'))
-                }}
-              />
-              <HillsAndVillage />
-              <Fences map={map} />
-            </>
-          ) : map === 'auvers' ? (
-            <>
-              <Hedges />
-              <Meadows />
-            </>
-          ) : (
-            // the crow painting has no village, cypress or hedges — just the
-            // field, the three roads and the storm. A ring of boulders marks
-            // the field's rim (perch spots), and where the middle road dies:
-            // the painter's hat and tools. Rain that never stops.
-            <>
-              <Boulders />
-              <Mountains />
-              <Memorial />
-              <Rain />
-            </>
-          )}
-        </group>
-        <Sparrows burstSignal={burstSignal.current} modeRef={modeRef} crow={map === 'crowfield'} />
-        <BirdAvatar
-          bubble={bubble}
-          presenceRef={presenceRef}
-          moveRef={moveRef}
-          perchedAt={perched ? perch : null}
-          onTap={
-            isCoarse
-              ? () => {
-                  if (chatOpen) return
-                  setChatText('')
-                  setChatOpen(true)
-                }
-              : undefined
-          }
-        />
-        <RemoteBirds
-          started={started}
-          map={map}
-          friendNames={friendNames}
-          birdRefs={birdRefs}
-          playersRef={remotePlayersRef}
-          freshnessRef={freshnessRef}
-          blocked={blocked}
-          onSelect={(p) => {
-            if (chatOpen) setChatOpen(false)
-            setFriendTarget(p)
-          }}
-        />
-        <PlayerControls
-          joystick={joystick}
-          lookDelta={lookDelta}
-          started={started}
-          paused={paused}
-          heightRef={heightRef}
-          fovRef={fovRef}
-          map={map}
-          pointerLock={pointerLock}
-          continuousFly={continuousFly}
-          flyLatch={flyLatch}
-          ledRef={ledRef}
-          perchedRef={perchedRef}
-          leadYawRef={leadYawRef}
-          moveRef={moveRef}
-          spawnTick={spawnTick}
-          faceRef={faceRef}
-          warpRef={warpRef}
-          onLockFallback={notifyLockFallback}
-        />
-        <LeadFollower
-          ledBy={lead?.ledBy ?? null}
-          map={map}
-          birdRefs={birdRefs}
-          freshnessRef={freshnessRef}
-          heightRef={heightRef}
-          ledRef={ledRef}
-          leadYawRef={leadYawRef}
-          moveRef={moveRef}
-          onGuideGone={() => showToast(tRef.current('leadPartnerGone'))}
-        />
-        <PerchController
-          perch={perch}
-          map={map}
-          paused={paused}
-          presenceRef={presenceRef}
-          heightRef={heightRef}
-          perchedRef={perchedRef}
-          ledRef={ledRef}
-          joystick={joystick}
-          birdRefs={birdRefs}
-          markersRef={perchMarkersRef}
-          onPerch={(p) => {
-            setPerch(p)
-            showToast(t('toastPerched'))
-          }}
-          onSettled={setPerched}
-          onTakeoff={() => setPerch(null)}
-        />
-        <AudioMotion />
-      </Canvas>
-
-      {/* crosshair */}
-      {started && !paused && (
-        <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -ml-1.5 -mt-1.5 h-3 w-3 rounded-full border border-white/70 bg-white/20" />
-      )}
-
-      {started && !paused && (
-        <button
-          data-ui
-          type="button"
-          onClick={openMenu}
-          aria-label={t('openMenu')}
-          title={t('openMenu')}
-          className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-30 flex h-12 w-12 touch-manipulation items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-[#0d1530]/40 text-[#f5e6bd] backdrop-blur-sm transition-colors hover:bg-[#f5e6bd]/15 active:bg-[#f5e6bd]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f5e6bd]"
-        >
-          <Menu size={22} strokeWidth={1.7} className="pointer-events-none" aria-hidden="true" />
-        </button>
-      )}
-
-      {/* floating perch icons above nearby posts */}
-      {started && !paused && !perched && <PerchMarkers markersRef={perchMarkersRef} />}
-
-      {/* takeoff button — only while perched (the floating icons handle discovery) */}
-      {started && !paused && perched && (
-        <button
-          data-ui
-          onClick={() => setPerch(null)}
-          aria-label={t('perchTakeoff')}
-          title={t('perchTakeoff')}
-          className="absolute bottom-5 left-1/2 z-10 flex h-11 w-11 -translate-x-1/2 items-center justify-center rounded-full border border-[#f5e6bd] bg-[#f5e6bd]/25 text-[#f5e6bd] shadow-[0_0_14px_rgba(245,230,189,0.35)] transition-all"
-        >
-          <PerchBirdIcon size={22} />
-        </button>
-      )}
-
-      {/* touch controls — canvas stays fully clickable */}
-      {started && !paused && (
-        <>
-          <TouchControls
+          <PlayerControls
             joystick={joystick}
             lookDelta={lookDelta}
+            started={started}
+            paused={paused || chatOpen}
+            heightRef={heightRef}
+            verticalInput={verticalInput}
             fovRef={fovRef}
-            onDoubleTap={toggleSlider}
-            showPad={isCoarse && !continuousFly && !chatOpen}
-            label={t('movementControl')}
+            map={map}
+            pointerLock={pointerLock}
+            continuousFly={continuousFly}
+            flyLatch={flyLatch}
+            ledRef={ledRef}
+            perchedRef={perchedRef}
+            leadYawRef={leadYawRef}
+            moveRef={moveRef}
+            spawnTick={spawnTick}
+            faceRef={faceRef}
+            warpRef={warpRef}
+            onLockFallback={notifyLockFallback}
           />
-          <HeightSlider heightRef={heightRef} visible={sliderVisible} />
-          {continuousFly && isCoarse && <FlyWheel flyLatch={flyLatch} />}
-        </>
-      )}
+          <LeadFollower
+            paused={paused || chatOpen}
+            ledBy={lead?.ledBy ?? null}
+            map={map}
+            birdRefs={birdRefs}
+            freshnessRef={freshnessRef}
+            heightRef={heightRef}
+            ledRef={ledRef}
+            leadYawRef={leadYawRef}
+            moveRef={moveRef}
+            onGuideGone={() => showToast(tRef.current('leadPartnerGone'))}
+          />
+          <PerchController
+            perch={perch}
+            map={map}
+            paused={paused || chatOpen}
+            presenceRef={presenceRef}
+            heightRef={heightRef}
+            perchedRef={perchedRef}
+            ledRef={ledRef}
+            joystick={joystick}
+            birdRefs={birdRefs}
+            markersRef={perchMarkersRef}
+            onPerch={(p) => {
+              setPerch(p)
+              showToast(t('toastPerched'))
+            }}
+            onSettled={setPerched}
+            onTakeoff={() => setPerch(null)}
+          />
+          <AudioMotion />
+        </Canvas>
 
-      {/* mode badge */}
-      {started && !paused && (
-        <div className="pointer-events-none absolute right-5 top-6 z-30 rounded-full border border-[#f5e6bd]/40 bg-black/30 px-4 py-1.5 text-xs text-[#f5e6bd] backdrop-blur-sm">
-          {badgeMode}
-        </div>
-      )}
+        {/* crosshair */}
+        {started && !paused && (
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -ml-1.5 -mt-1.5 h-3 w-3 rounded-full border border-white/70 bg-white/20" />
+        )}
 
-      {/* toast */}
-      {toast && (
-        <div className="pointer-events-none absolute bottom-24 left-1/2 z-30 -translate-x-1/2 rounded-full border border-[#f5e6bd]/30 bg-black/45 px-6 py-2.5 text-sm text-[#f5e6bd] backdrop-blur-md">
-          {toast}
-        </div>
-      )}
+        {started && !paused && (
+          <button
+            data-ui
+            type="button"
+            onClick={openMenu}
+            aria-label={t('openMenu')}
+            title={t('openMenu')}
+            className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-30 flex h-12 w-12 touch-manipulation items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-[#0d1530]/40 text-[#f5e6bd] backdrop-blur-sm transition-colors hover:bg-[#f5e6bd]/15 active:bg-[#f5e6bd]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f5e6bd]"
+          >
+            <Menu size={22} strokeWidth={1.7} className="pointer-events-none" aria-hidden="true" />
+          </button>
+        )}
 
-      {/* Chat input stays at the bottom until sent or canceled. */}
+        {/* floating perch icons above nearby posts */}
+        {started && !paused && !perched && <PerchMarkers markersRef={perchMarkersRef} />}
+
+        {/* takeoff button — only while perched (the floating icons handle discovery) */}
+        {started && !paused && perched && (
+          <button
+            data-ui
+            onClick={() => setPerch(null)}
+            aria-label={t('perchTakeoff')}
+            title={t('perchTakeoff')}
+            className="absolute bottom-5 left-1/2 z-10 flex h-11 w-11 [@media(orientation:portrait)]:bottom-44 -translate-x-1/2 items-center justify-center rounded-full border border-[#f5e6bd] bg-[#f5e6bd]/25 text-[#f5e6bd] shadow-[0_0_14px_rgba(245,230,189,0.35)] transition-all"
+          >
+            <PerchBirdIcon size={22} />
+          </button>
+        )}
+
+        {/* touch controls — canvas stays fully clickable */}
+        {started && !paused && !chatOpen && (
+          <>
+            <TouchControls
+              joystick={joystick}
+              lookDelta={lookDelta}
+              fovRef={fovRef}
+              showPad={hasTouch && !continuousFly && !chatOpen}
+              label={t('movementControl')}
+            />
+            {hasTouch && (
+              <FlightButtons
+                input={verticalInput}
+                upLabel={t('flyUp')}
+                downLabel={t('flyDown')}
+                onLift={() => setPerch(null)}
+              />
+            )}
+            {continuousFly && hasTouch && <FlyWheel flyLatch={flyLatch} />}
+          </>
+        )}
+
+        {/* mode badge */}
+        {started && !paused && (
+          <div className="pointer-events-none absolute right-5 top-6 z-30 max-w-[calc(100%-6.5rem)] rounded-full text-right border border-[#f5e6bd]/40 bg-black/30 px-4 py-1.5 text-xs text-[#f5e6bd] backdrop-blur-sm">
+            {badgeMode}
+          </div>
+        )}
+
+        {/* toast */}
+        {toast && (
+          <div className="pointer-events-none absolute bottom-24 left-1/2 z-30 -translate-x-1/2 rounded-full border border-[#f5e6bd]/30 bg-black/45 px-6 py-2.5 text-sm text-[#f5e6bd] backdrop-blur-md">
+            {toast}
+          </div>
+        )}
+
+        {/* menu frame — shown at start and every time ESC is pressed */}
+        {menuOpen && (
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-[#0d1530]/80 backdrop-blur-sm">
+            {/* top-left entries: language page + instructions page */}
+            <div className="absolute left-5 top-5 flex items-center gap-2">
+              <button
+                onClick={() => setLangPageOpen(true)}
+                className="flex min-h-11 items-center gap-2 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-4 py-2 text-sm text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+              >
+                🌐 {LANGS.find((l) => l.id === lang)?.label}
+              </button>
+              <button
+                onClick={() => setHowToOpen(true)}
+                aria-label={t('howToTitle')}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-base text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+              >
+                ?
+              </button>
+              <button
+                onClick={() => setMuted(audio.toggleMute())}
+                aria-label={muted ? t('soundOff') : t('soundOn')}
+                title={muted ? t('soundOff') : t('soundOn')}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+              >
+                {muted ? <VolumeX size={17} strokeWidth={1.8} /> : <Volume2 size={17} strokeWidth={1.8} />}
+              </button>
+              <button
+                onClick={() => setSettingsOpen(true)}
+                aria-label={t('settingsTitle')}
+                title={t('settingsTitle')}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
+              >
+                <Settings size={17} strokeWidth={1.8} />
+              </button>
+            </div>
+            <div className="mb-2 text-5xl [@media(max-height:500px)]:text-4xl">🌾</div>
+            <h2
+              className={`mb-1 px-4 text-center text-[#f5e6bd] ${
+                cjk ? 'text-2xl tracking-[0.2em] sm:text-3xl sm:tracking-[0.3em]' : 'text-3xl tracking-[0.04em] sm:text-4xl'
+              }`}
+            >
+              {t('title')}
+            </h2>
+            <p className="mb-1 px-4 text-center text-sm tracking-widest text-[#d8c48a]/80">{t('subtitle')}</p>
+            <p className="mb-10 text-xs tracking-[0.5em] text-[#d8c48a]/60 [@media(max-height:500px)]:mb-2">WHEATFIELD · IMMERSIVE</p>
+            <button
+              onClick={enterPainting}
+              className={`max-w-[calc(100%-2.5rem)] rounded-full border-2 border-[#f5e6bd] bg-[#f5e6bd]/10 px-6 py-3 text-base text-[#f5e6bd] transition-all hover:bg-[#f5e6bd] hover:text-[#0d1530] sm:px-10 sm:text-lg ${
+                cjk ? 'tracking-[0.3em]' : 'tracking-[0.12em]'
+              }`}
+            >
+              {t('enterBtn')}
+            </button>
+            <div className="mt-4 flex flex-col items-center gap-3 [@media(max-height:500px)]:mt-2 [@media(max-height:500px)]:flex-row">
+              <button
+                onClick={() => setMapsPageOpen(true)}
+                className={`min-h-11 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-6 py-2 text-sm text-[#f5e6bd]/80 transition-all hover:bg-[#f5e6bd]/10 hover:text-[#f5e6bd] ${
+                  cjk ? 'tracking-[0.2em]' : 'tracking-[0.06em]'
+                }`}
+              >
+                🖼️ {t('changeMapsBtn')}
+              </button>
+              <button
+                onClick={() => setFriendsPageOpen(true)}
+                className={`flex min-h-11 items-center gap-2 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-6 py-2 text-sm text-[#f5e6bd]/80 transition-all hover:bg-[#f5e6bd]/10 hover:text-[#f5e6bd] ${
+                  cjk ? 'tracking-[0.2em]' : 'tracking-[0.06em]'
+                }`}
+              >
+                <Bird size={16} strokeWidth={1.8} /> {t('friendsBtn')}
+              </button>
+            </div>
+            <footer className="absolute bottom-4 left-5 right-5 text-right leading-relaxed sm:bottom-5 sm:left-auto sm:right-6">
+              <p className="text-xs text-[#f5e6bd]/80 sm:text-sm">
+                © 2026 Joanna Huang. All rights reserved.
+              </p>
+              <p className="mt-1 text-[11px] text-[#d8c48a]/70 sm:text-xs">Assisted by AI</p>
+            </footer>
+          </div>
+        )}
+
+        {/* dedicated language page */}
+        {langPageOpen && menuOpen && (
+          <LanguagePage t={t} lang={lang} onPick={setLang} onClose={() => setLangPageOpen(false)} />
+        )}
+
+        {/* dedicated instructions page */}
+        {howToOpen && menuOpen && <InstructionsPage t={t} onClose={() => setHowToOpen(false)} />}
+
+        {/* dedicated maps page */}
+        {mapsPageOpen && menuOpen && (
+          <MapsPage t={t} map={map} onPick={setMap} onClose={() => setMapsPageOpen(false)} />
+        )}
+
+        {/* dedicated friends page */}
+        {friendsPageOpen && menuOpen && (
+          <FriendsPage
+            t={t}
+            onClose={() => setFriendsPageOpen(false)}
+            onJoin={(f) => {
+              if (!f.map) return
+              if (f.map === 'wheatfield' || f.map === 'auvers' || f.map === 'crowfield') setMap(f.map)
+              setPerch(null)
+              setSpawnTick((n) => n + 1) // land at the spawn point of their painting
+              setFriendsPageOpen(false)
+              enterPainting()
+              showToast(tRef.current('friendJoined'))
+            }}
+          />
+        )}
+
+        {/* dedicated settings page */}
+        {settingsOpen && menuOpen && (
+          <SettingsPage
+            t={t}
+            pointerLock={pointerLock}
+            continuousFly={continuousFly}
+            onToggleLock={() => setPointerLock(!pointerLock)}
+            onToggleFly={() => setContinuousFly(!continuousFly)}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
+
+        {/* friend menu — slides over the right third when a bird is tapped */}
+        {friendTarget && (
+          <FriendMenu
+            t={t}
+            label={friendNames[friendTarget.id] ?? t('friendStranger')}
+            isFriend={friendTarget.id in friendNames}
+            pendingOut={friendTarget.id in pendingOut}
+            friends={friends}
+            targetId={friendTarget.id}
+            leadLinked={!!lead && (lead.leading === friendTarget.id || lead.ledBy === friendTarget.id)}
+            leadPending={friendTarget.id in leadPendingOut}
+            onClose={() => setFriendTarget(null)}
+            onBefriend={() => setFriendConfirm({ kind: 'out', otherId: friendTarget.id })}
+            onLead={() => setFriendConfirm({ kind: 'leadOut', otherId: friendTarget.id })}
+            onLeadRelease={releaseLead}
+            onLocked={() => showToast(t('friendLocked'))}
+            blocked={blocked.has(friendTarget.id)}
+            onBlock={() => toggleBlock(friendTarget.id)}
+            onRename={() =>
+              setNamingQueue((q) => [
+                ...q,
+                { friendId: friendTarget.id, current: friendNames[friendTarget.id] ?? '' },
+              ])
+            }
+            onLocate={() => {
+              // first tap: turn to face them. Second tap within 10s: offer warp.
+              const p = remotePlayersRef.current.find((pl) => pl.id === friendTarget.id) ?? friendTarget
+              const now = Date.now()
+              if (locateStamp.current && locateStamp.current.id === p.id && now - locateStamp.current.at < 10000) {
+                locateStamp.current = null
+                setWarpAsk(p)
+              } else {
+                faceRef.current = { x: p.x, z: p.z }
+                locateStamp.current = { id: p.id, at: now }
+              }
+            }}
+          />
+        )}
+
+        {/* warp confirm — landing at a friend's side means landing in their hand */}
+        {warpAsk && (
+          <FriendConfirm
+            t={t}
+            text={t('friendWarpAsk')}
+            onYes={() => {
+              warpRef.current = { x: warpAsk.x, z: warpAsk.z }
+              apiWarpLead(getPlayerId(), warpAsk.id).catch(() => {})
+              setWarpAsk(null)
+              setFriendTarget(null)
+            }}
+            onNo={() => setWarpAsk(null)}
+          />
+        )}
+
+        {/* yes/no confirm — friend ask, lead ask, and their incoming twins */}
+        {friendConfirm && (
+          <FriendConfirm
+            t={t}
+            text={
+              friendConfirm.kind === 'out'
+                ? t('friendAskOut')
+                : friendConfirm.kind === 'in'
+                  ? t('friendAskIn')
+                  : friendConfirm.kind === 'leadOut'
+                    ? t('leadAskOut')
+                    : t('leadAskIn')
+            }
+            onYes={() => {
+              if (friendConfirm.kind === 'out') sendFriendReq(friendConfirm.otherId)
+              else if (friendConfirm.kind === 'in') answerFriendReq(true)
+              else if (friendConfirm.kind === 'leadOut') sendLeadReq(friendConfirm.otherId)
+              else answerLeadReq(true)
+            }}
+            onNo={() => {
+              if (friendConfirm.kind === 'in') answerFriendReq(false)
+              else if (friendConfirm.kind === 'leadIn') answerLeadReq(false)
+              else setFriendConfirm(null)
+            }}
+          />
+        )}
+
+        {/* naming popup once a friendship forms */}
+        {naming && (
+          <FriendNaming
+            t={t}
+            current={naming.current}
+            value={nameInput}
+            onChange={setNameInput}
+            onSave={saveFriendName}
+            onLater={closeNaming}
+          />
+        )}
+
+      </div>
+
+      {/* Only the composer follows the keyboard; the scene keeps its original size. */}
       {chatOpen && (
-        <div data-ui className="absolute bottom-0 left-0 right-0 z-40 flex justify-center bg-black/40 px-4 py-3 backdrop-blur-md">
+        <div ref={chatViewport.composer} data-ui className="fixed bottom-0 left-0 right-0 z-40 flex justify-center bg-black/40 px-4 py-3 backdrop-blur-md">
           <div className="flex w-full max-w-xl items-center gap-2 rounded-full border border-white/40 bg-white/10 p-1 pl-5 focus-within:border-[#f5e6bd]">
             <input
-              autoFocus
+              ref={chatViewport.input}
               value={chatText}
               onChange={(e) => setChatText(e.target.value)}
               onKeyDown={(e) => {
@@ -1470,7 +1588,7 @@ export default function App() {
                 if (e.key === 'Escape') setChatOpen(false)
               }}
               placeholder={t('chatPlaceholder')}
-              className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white placeholder-white/50 outline-none"
+              className="min-w-0 flex-1 bg-transparent py-2.5 text-base text-white placeholder-white/50 outline-none"
             />
             <button
               type="button"
@@ -1490,224 +1608,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* menu frame — shown at start and every time ESC is pressed */}
-      {menuOpen && (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-[#0d1530]/80 backdrop-blur-sm">
-          {/* top-left entries: language page + instructions page */}
-          <div className="absolute left-5 top-5 flex items-center gap-2">
-            <button
-              onClick={() => setLangPageOpen(true)}
-              className="flex min-h-11 items-center gap-2 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-4 py-2 text-sm text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-            >
-              🌐 {LANGS.find((l) => l.id === lang)?.label}
-            </button>
-            <button
-              onClick={() => setHowToOpen(true)}
-              aria-label={t('howToTitle')}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-base text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-            >
-              ?
-            </button>
-            <button
-              onClick={() => setMuted(audio.toggleMute())}
-              aria-label={muted ? t('soundOff') : t('soundOn')}
-              title={muted ? t('soundOff') : t('soundOn')}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-            >
-              {muted ? <VolumeX size={17} strokeWidth={1.8} /> : <Volume2 size={17} strokeWidth={1.8} />}
-            </button>
-            <button
-              onClick={() => setSettingsOpen(true)}
-              aria-label={t('settingsTitle')}
-              title={t('settingsTitle')}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-            >
-              <Settings size={17} strokeWidth={1.8} />
-            </button>
-          </div>
-          <div className="mb-2 text-5xl [@media(max-height:500px)]:text-4xl">🌾</div>
-          <h2
-            className={`mb-1 px-4 text-center text-[#f5e6bd] ${
-              cjk ? 'text-3xl tracking-[0.3em]' : 'text-4xl tracking-[0.04em]'
-            }`}
-          >
-            {t('title')}
-          </h2>
-          <p className="mb-1 px-4 text-center text-sm tracking-widest text-[#d8c48a]/80">{t('subtitle')}</p>
-          <p className="mb-10 text-xs tracking-[0.5em] text-[#d8c48a]/60 [@media(max-height:500px)]:mb-2">WHEATFIELD · IMMERSIVE</p>
-          <button
-            onClick={enterPainting}
-            className={`rounded-full border-2 border-[#f5e6bd] bg-[#f5e6bd]/10 px-10 py-3 text-lg text-[#f5e6bd] transition-all hover:bg-[#f5e6bd] hover:text-[#0d1530] ${
-              cjk ? 'tracking-[0.3em]' : 'tracking-[0.12em]'
-            }`}
-          >
-            {t('enterBtn')}
-          </button>
-          <div className="mt-4 flex flex-col items-center gap-3 [@media(max-height:500px)]:mt-2 [@media(max-height:500px)]:flex-row">
-            <button
-              onClick={() => setMapsPageOpen(true)}
-              className={`min-h-11 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-6 py-2 text-sm text-[#f5e6bd]/80 transition-all hover:bg-[#f5e6bd]/10 hover:text-[#f5e6bd] ${
-                cjk ? 'tracking-[0.2em]' : 'tracking-[0.06em]'
-              }`}
-            >
-              🖼️ {t('changeMapsBtn')}
-            </button>
-            <button
-              onClick={() => setFriendsPageOpen(true)}
-              className={`flex min-h-11 items-center gap-2 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-6 py-2 text-sm text-[#f5e6bd]/80 transition-all hover:bg-[#f5e6bd]/10 hover:text-[#f5e6bd] ${
-                cjk ? 'tracking-[0.2em]' : 'tracking-[0.06em]'
-              }`}
-            >
-              <Bird size={16} strokeWidth={1.8} /> {t('friendsBtn')}
-            </button>
-          </div>
-          <footer className="absolute bottom-4 left-5 right-5 text-right leading-relaxed sm:bottom-5 sm:left-auto sm:right-6">
-            <p className="text-xs text-[#f5e6bd]/80 sm:text-sm">
-              © 2026 Joanna Huang. All rights reserved.
-            </p>
-            <p className="mt-1 text-[11px] text-[#d8c48a]/70 sm:text-xs">Assisted by AI</p>
-          </footer>
-        </div>
-      )}
-
-      {/* dedicated language page */}
-      {langPageOpen && menuOpen && (
-        <LanguagePage t={t} lang={lang} onPick={setLang} onClose={() => setLangPageOpen(false)} />
-      )}
-
-      {/* dedicated instructions page */}
-      {howToOpen && menuOpen && <InstructionsPage t={t} onClose={() => setHowToOpen(false)} />}
-
-      {/* dedicated maps page */}
-      {mapsPageOpen && menuOpen && (
-        <MapsPage t={t} map={map} onPick={setMap} onClose={() => setMapsPageOpen(false)} />
-      )}
-
-      {/* dedicated friends page */}
-      {friendsPageOpen && menuOpen && (
-        <FriendsPage
-          t={t}
-          onClose={() => setFriendsPageOpen(false)}
-          onJoin={(f) => {
-            if (!f.map) return
-            if (f.map === 'wheatfield' || f.map === 'auvers' || f.map === 'crowfield') setMap(f.map)
-            setPerch(null)
-            setSpawnTick((n) => n + 1) // land at the spawn point of their painting
-            setFriendsPageOpen(false)
-            enterPainting()
-            showToast(tRef.current('friendJoined'))
-          }}
-        />
-      )}
-
-      {/* dedicated settings page */}
-      {settingsOpen && menuOpen && (
-        <SettingsPage
-          t={t}
-          pointerLock={pointerLock}
-          continuousFly={continuousFly}
-          onToggleLock={() => setPointerLock(!pointerLock)}
-          onToggleFly={() => setContinuousFly(!continuousFly)}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
-
-      {/* friend menu — slides over the right third when a bird is tapped */}
-      {friendTarget && (
-        <FriendMenu
-          t={t}
-          label={friendNames[friendTarget.id] ?? t('friendStranger')}
-          isFriend={friendTarget.id in friendNames}
-          pendingOut={friendTarget.id in pendingOut}
-          friends={friends}
-          targetId={friendTarget.id}
-          leadLinked={!!lead && (lead.leading === friendTarget.id || lead.ledBy === friendTarget.id)}
-          leadPending={friendTarget.id in leadPendingOut}
-          onClose={() => setFriendTarget(null)}
-          onBefriend={() => setFriendConfirm({ kind: 'out', otherId: friendTarget.id })}
-          onLead={() => setFriendConfirm({ kind: 'leadOut', otherId: friendTarget.id })}
-          onLeadRelease={releaseLead}
-          onLocked={() => showToast(t('friendLocked'))}
-          blocked={blocked.has(friendTarget.id)}
-          onBlock={() => toggleBlock(friendTarget.id)}
-          onRename={() =>
-            setNamingQueue((q) => [
-              ...q,
-              { friendId: friendTarget.id, current: friendNames[friendTarget.id] ?? '' },
-            ])
-          }
-          onLocate={() => {
-            // first tap: turn to face them. Second tap within 10s: offer warp.
-            const p = remotePlayersRef.current.find((pl) => pl.id === friendTarget.id) ?? friendTarget
-            const now = Date.now()
-            if (locateStamp.current && locateStamp.current.id === p.id && now - locateStamp.current.at < 10000) {
-              locateStamp.current = null
-              setWarpAsk(p)
-            } else {
-              faceRef.current = { x: p.x, z: p.z }
-              locateStamp.current = { id: p.id, at: now }
-            }
-          }}
-        />
-      )}
-
-      {/* warp confirm — landing at a friend's side means landing in their hand */}
-      {warpAsk && (
-        <FriendConfirm
-          t={t}
-          text={t('friendWarpAsk')}
-          onYes={() => {
-            warpRef.current = { x: warpAsk.x, z: warpAsk.z }
-            apiWarpLead(getPlayerId(), warpAsk.id).catch(() => {})
-            setWarpAsk(null)
-            setFriendTarget(null)
-          }}
-          onNo={() => setWarpAsk(null)}
-        />
-      )}
-
-      {/* yes/no confirm — friend ask, lead ask, and their incoming twins */}
-      {friendConfirm && (
-        <FriendConfirm
-          t={t}
-          text={
-            friendConfirm.kind === 'out'
-              ? t('friendAskOut')
-              : friendConfirm.kind === 'in'
-                ? t('friendAskIn')
-                : friendConfirm.kind === 'leadOut'
-                  ? t('leadAskOut')
-                  : t('leadAskIn')
-          }
-          onYes={() => {
-            if (friendConfirm.kind === 'out') sendFriendReq(friendConfirm.otherId)
-            else if (friendConfirm.kind === 'in') answerFriendReq(true)
-            else if (friendConfirm.kind === 'leadOut') sendLeadReq(friendConfirm.otherId)
-            else answerLeadReq(true)
-          }}
-          onNo={() => {
-            if (friendConfirm.kind === 'in') answerFriendReq(false)
-            else if (friendConfirm.kind === 'leadIn') answerLeadReq(false)
-            else setFriendConfirm(null)
-          }}
-        />
-      )}
-
-      {/* naming popup once a friendship forms */}
-      {naming && (
-        <FriendNaming
-          t={t}
-          current={naming.current}
-          value={nameInput}
-          onChange={setNameInput}
-          onSave={saveFriendName}
-          onLater={closeNaming}
-        />
-      )}
-
-      {/* portrait phones/tablets: rotate-to-landscape prompt */}
-      <RotateOverlay t={t} />
 
       {/* multiplayer presence reporter (renders nothing) */}
       <PresenceHeartbeat started={started} presenceRef={presenceRef} map={map} sitting={perched} />

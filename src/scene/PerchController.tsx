@@ -167,6 +167,7 @@ export function PerchController({
       }
       return
     }
+    if (paused) return
     perchedRef.current = true
     const cam = state.camera
     const { e: euler } = tmp.current

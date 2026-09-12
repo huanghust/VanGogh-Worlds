@@ -95,6 +95,10 @@ export function BirdAvatar({
   useFrame((state, delta) => {
     if (!group.current) return
     const cam = state.camera
+    // In portrait the horizontal view is narrower. Keep our nearby bird inside
+    // the screen; use the frozen camera aspect while the chat keyboard is open.
+    const aspect = (cam as THREE.PerspectiveCamera).aspect
+    group.current.scale.setScalar(perchedAt ? 0.9 : 0.9 * Math.min(1, aspect))
     const { fwd, target } = tmp.current
     const t = state.clock.elapsedTime
 

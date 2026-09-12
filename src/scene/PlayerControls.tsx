@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { groundHeight } from './terrain'
 import type { MapId } from './maps'
+import type { HeldDirection } from '../controls/heldDirection'
 
 const BOUND = 66.5 // stay inside the fence ring
 export const MIN_H = 1.4
@@ -17,6 +18,7 @@ export function PlayerControls({
   started,
   paused = false,
   heightRef,
+  verticalInput,
   fovRef,
   map,
   pointerLock = true,
@@ -36,6 +38,7 @@ export function PlayerControls({
   started: boolean
   paused?: boolean // menu frame open — no auto-lock while it is
   heightRef: React.MutableRefObject<number>
+  verticalInput: React.MutableRefObject<HeldDirection>
   fovRef: React.MutableRefObject<number>
   map: MapId
   pointerLock?: boolean // on = lock mouse to look · off = drag to look
@@ -127,18 +130,18 @@ export function PlayerControls({
   useEffect(() => {
     if (!pointerLock) return
     const onMove = (e: MouseEvent) => {
-      if (document.pointerLockElement !== gl.domElement) return
+      if (paused || document.pointerLockElement !== gl.domElement) return
       if (!ledRef?.current) yaw.current -= e.movementX * 0.0022 // led: the guide steers
       pitch.current = THREE.MathUtils.clamp(pitch.current - e.movementY * 0.0022, -1.2, 1.3)
     }
     document.addEventListener('mousemove', onMove)
     return () => document.removeEventListener('mousemove', onMove)
-  }, [gl, pointerLock])
+  }, [gl, pointerLock, paused])
 
   // drag-to-look (pointer lock off OR temporarily unavailable): hold left button
   // and drag, fling = inertia. Ignored entirely while the pointer is locked.
   useEffect(() => {
-    if (!dragLook || isTouchDevice()) return
+    if (!dragLook || isTouchDevice() || paused) return
     const dom = gl.domElement
     const onDown = (e: MouseEvent) => {
       if (e.button !== 0 || document.pointerLockElement === dom) return
@@ -168,7 +171,7 @@ export function PlayerControls({
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-  }, [gl, dragLook])
+  }, [gl, dragLook, paused])
 
   // pointer lock engage + re-engage — skipped only when the setting is off.
   // Failures are often transient (Chrome's ~1.25s cooldown after an ESC exit,
@@ -181,8 +184,11 @@ export function PlayerControls({
     if (!pointerLock) return
     const dom = gl.domElement
     const timers: number[] = []
+    let disposed = false
+    let released = false
 
     const fail = (attempt: number) => {
+      if (disposed || released) return
       lockPending.current = false
       failStreak.current += 1
       if (failStreak.current >= 3 && !lockBrokenRef.current) {
@@ -198,7 +204,7 @@ export function PlayerControls({
     }
 
     const tryLock = (attempt = 0) => {
-      if (!started || paused || isTouchDevice()) return
+      if (disposed || released || !started || paused || isTouchDevice()) return
       if (document.pointerLockElement === dom || lockPending.current) return
       lockPending.current = true
       sawPromise.current = false
@@ -220,8 +226,9 @@ export function PlayerControls({
       }
     }
 
-    const onGesture = () => tryLock()
-    const onFocus = () => tryLock() // an unfocused window rejects with WrongDocumentError — retry once focus arrives
+    const onGesture = () => { released = false; tryLock() }
+    // Never reacquire on window focus: Windows/Meta and Alt-Tab can release the
+    // lock. Resuming requires the menu button or a new canvas click.
     const onError = () => {
       // Chrome fires both the event and a promise rejection — count only once
       if (sawPromise.current) lockPending.current = false
@@ -235,12 +242,14 @@ export function PlayerControls({
           lockBrokenRef.current = false
           setLockBroken(false)
         }
+      } else {
+        released = true
+        timers.forEach((t) => window.clearTimeout(t))
       }
     }
 
     dom.addEventListener('click', onGesture)
     dom.addEventListener('mousedown', onGesture) // some browsers prefer the earlier gesture
-    window.addEventListener('focus', onFocus)
     document.addEventListener('pointerlockerror', onError)
     document.addEventListener('pointerlockchange', onChange)
     // auto-lock only when the scene becomes active (entering the painting or
@@ -254,9 +263,10 @@ export function PlayerControls({
     prevPointerLock.current = pointerLock
     if (justActivated || justEnabled) tryLock()
     return () => {
+      disposed = true
+      lockPending.current = false
       dom.removeEventListener('click', onGesture)
       dom.removeEventListener('mousedown', onGesture)
-      window.removeEventListener('focus', onFocus)
       document.removeEventListener('pointerlockerror', onError)
       document.removeEventListener('pointerlockchange', onChange)
       timers.forEach((t) => window.clearTimeout(t))
@@ -266,6 +276,7 @@ export function PlayerControls({
   useFrame((_, delta) => {
     if (!started || paused) {
       keys.current = {}
+      if (moveRef) moveRef.current = 0
       lookDelta.current = { dx: 0, dy: 0 }
       angVel.current = { x: 0, y: 0 }
       dragging.current = false
@@ -322,11 +333,11 @@ export function PlayerControls({
 
     const k = keys.current
 
-    // view height: ArrowUp / ArrowDown (slider writes heightRef directly)
+    // view height: keyboard arrows and the right-thumb flight buttons
     // (suspended while being led or perched — someone else owns the altitude)
     if (!ledRef?.current && !perchedRef?.current) {
-      if (k['ArrowUp']) heightRef.current = Math.min(MAX_H, heightRef.current + delta * 5)
-      if (k['ArrowDown']) heightRef.current = Math.max(MIN_H, heightRef.current - delta * 5)
+      const vertical = Math.max(-1, Math.min(1, (k['ArrowUp'] ? 1 : 0) - (k['ArrowDown'] ? 1 : 0) + verticalInput.current.value))
+      heightRef.current = THREE.MathUtils.clamp(heightRef.current + vertical * Math.min(delta, 0.05) * 5, MIN_H, MAX_H)
     }
 
     // zoom: + / - (pinch writes fovRef directly on touch)

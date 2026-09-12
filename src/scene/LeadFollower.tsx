@@ -24,6 +24,7 @@ const GUIDE_GONE_MS = 5000 // no fresh heartbeat from the guide for this long = 
 
 export function LeadFollower({
   ledBy,
+  paused = false,
   map,
   birdRefs,
   freshnessRef,
@@ -34,6 +35,7 @@ export function LeadFollower({
   onGuideGone,
 }: {
   ledBy: string | null
+  paused?: boolean
   map: MapId
   birdRefs: React.MutableRefObject<Map<string, THREE.Group>>
   freshnessRef: React.MutableRefObject<Map<string, [number, number]>> // id -> [server updatedAt, client ms it last advanced]
@@ -49,6 +51,7 @@ export function LeadFollower({
   const lastLedBy = useRef<string | null>(null)
 
   useFrame((state, delta) => {
+    if (paused) return
     // a fresh link (or a release) resets the absence bookkeeping
     if (ledBy !== lastLedBy.current) {
       lastLedBy.current = ledBy

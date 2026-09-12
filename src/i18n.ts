@@ -3,6 +3,8 @@
 // honorable mention: Van Gogh was Dutch and wrote most of his letters in it.
 
 const en = {
+  flyUp: 'Hold to rise',
+  flyDown: 'Hold to descend',
   openMenu: "Open menu",
   movementControl: "Drag to move; release to stop",
   title: "Into Van Gogh's Wheatfield",
@@ -10,7 +12,7 @@ const en = {
   instrDesktop:
     '🖱️ Desktop: click to lock the mouse and look around · W A S D to walk · Shift to run · ↑ ↓ view height · + − zoom',
   instrTouch:
-    '📱 Phone / tablet (landscape): swipe left half to move · swipe right half to look · pinch to zoom · tap to interact · double-tap for the height slider',
+    '📱 Phone / tablet: swipe left half to move · swipe right half to look · pinch to zoom · tap to interact · hold the lower-right buttons to rise or descend',
   instrInteract:
     '✨ Interact: tap the wheat for a gust of wind · tap cypresses to startle sparrows · tap the sky to change the time of day',
   instrChat:
@@ -33,8 +35,6 @@ const en = {
   toastNetErr: 'Network hiccup — message not sent',
   chatPlaceholder: 'Say something… (Enter to send, Esc to cancel)',
   chatSend: 'Send',
-  rotateTitle: 'Please rotate to landscape',
-  rotateSub: 'The whole wheatfield needs the wide view — turn your device sideways',
   modeDay: 'Day',
   modeDusk: 'Dusk',
   modeNight: 'Night',
@@ -93,12 +93,14 @@ const en = {
 export type LangKey = keyof typeof en
 
 const zhCN: Record<LangKey, string> = {
+  flyUp: '按住上升',
+  flyDown: '按住下降',
   openMenu: "打开菜单",
   movementControl: "拖动摇杆移动，松手停止",
   title: '走进梵高的麦田',
   subtitle: '一幅可以走进去的油画',
   instrDesktop: '🖱️ 电脑：点击画面锁定鼠标环视 · W A S D 走动 · Shift 奔跑 · ↑ ↓ 升降视角 · + − 缩放',
-  instrTouch: '📱 手机/平板（横屏）：左半屏滑动移动 · 右半屏滑动环视 · 双指捏合缩放 · 轻点互动 · 快速双击唤出高度滑杆',
+  instrTouch: '📱 手机/平板：左半屏滑动移动 · 右半屏滑动环视 · 双指捏合缩放 · 轻点互动 · 按住右下角按钮上升或下降',
   instrInteract: '✨ 互动：点击麦浪掀起风 · 点击柏树惊起麻雀 · 点击天空切换晨昏',
   instrChat: '💬 按 Enter（或轻点你的白鸟）说话 —— 文字会化作气泡停在白鸟头顶 · 在线的朋友也会变成白鸟与你同游',
   instrEsc: "⏸️ 轻点 ☰ 或按 ESC 回到本菜单",
@@ -119,8 +121,6 @@ const zhCN: Record<LangKey, string> = {
   toastNetErr: '网络开小差了，消息未能发送',
   chatPlaceholder: '说点什么……（Enter 发送，Esc 取消）',
   chatSend: '发送',
-  rotateTitle: '请横屏游玩',
-  rotateSub: '竖屏放不下整片麦田 —— 把设备侧过来吧',
   modeDay: '白昼',
   modeDusk: '黄昏',
   modeNight: '夜晚',
@@ -177,12 +177,14 @@ const zhCN: Record<LangKey, string> = {
 }
 
 const zhTW: Record<LangKey, string> = {
+  flyUp: '按住上升',
+  flyDown: '按住下降',
   openMenu: "開啟選單",
   movementControl: "拖動搖桿移動，鬆手停止",
   title: '走進梵高的麥田',
   subtitle: '一幅可以走進去的油畫',
   instrDesktop: '🖱️ 電腦：點擊畫面鎖定滑鼠環視 · W A S D 走動 · Shift 奔跑 · ↑ ↓ 升降視角 · + − 縮放',
-  instrTouch: '📱 手机/平板（橫屏）：左半屏滑動移動 · 右半屏滑動環視 · 雙指捏合縮放 · 輕點互動 · 快速雙擊喚出高度滑桿',
+  instrTouch: '📱 手机/平板：左半屏滑動移動 · 右半屏滑動環視 · 雙指捏合縮放 · 輕點互動 · 按住右下角按鈕上升或下降',
   instrInteract: '✨ 互動：點擊麥浪掀起風 · 點擊柏樹驚起麻雀 · 點擊天空切換晨昏',
   instrChat: '💬 按 Enter（或輕點你的白鳥）說話 —— 文字會化作氣泡停在白鳥頭頂 · 在線的朋友也會變成白鳥與你同遊',
   instrEsc: "⏸️ 輕點 ☰ 或按 ESC 回到本選單",
@@ -203,8 +205,6 @@ const zhTW: Record<LangKey, string> = {
   toastNetErr: '網路開小差了，訊息未能發送',
   chatPlaceholder: '說點什麼……（Enter 發送，Esc 取消）',
   chatSend: '發送',
-  rotateTitle: '請橫屏遊玩',
-  rotateSub: '豎屏放不下整片麥田 —— 把裝置側過來吧',
   modeDay: '白晝',
   modeDusk: '黃昏',
   modeNight: '夜晚',
@@ -261,12 +261,14 @@ const zhTW: Record<LangKey, string> = {
 }
 
 const ja: Record<LangKey, string> = {
+  flyUp: '長押しで上昇',
+  flyDown: '長押しで下降',
   openMenu: "メニューを開く",
   movementControl: "ドラッグで移動、指を離すと停止",
   title: 'ゴッホの麦畑へ',
   subtitle: '歩き回れる油絵の世界',
   instrDesktop: '🖱️ PC：クリックでマウスをロックして見回す · W A S D で移動 · Shift で走る · ↑ ↓ 視点の高さ · + − ズーム',
-  instrTouch: '📱 スマホ/タブレット（横画面）：左半分スワイプで移動 · 右半分スワイプで見回す · ピンチでズーム · タップで操作 · ダブルタップで高さスライダー',
+  instrTouch: '📱 スマホ/タブレット：左半分スワイプで移動 · 右半分スワイプで見回す · ピンチでズーム · タップで操作 · 右下のボタンを長押しして上昇・下降',
   instrInteract: '✨ 操作：麦をタップで風 · 糸杉をタップでスズメが飛ぶ · 空をタップで時間帯を切替',
   instrChat: '💬 Enter キー（または白い鳥をタップ）で話す —— 言葉は鳥の頭上の泡になる · オンラインの友達も白い鳥で現れます',
   instrEsc: "⏸️ ☰ をタップ、または ESC でメニューに戻る",
@@ -287,8 +289,6 @@ const ja: Record<LangKey, string> = {
   toastNetErr: '通信エラーで送信できませんでした',
   chatPlaceholder: '何か話そう……（Enter で送信、Esc でキャンセル）',
   chatSend: '送信',
-  rotateTitle: '横画面でプレイしてください',
-  rotateSub: '麦畑全体が入りません —— 端末を横向きにしてください',
   modeDay: '昼',
   modeDusk: '黄昏',
   modeNight: '夜',
@@ -345,12 +345,14 @@ const ja: Record<LangKey, string> = {
 }
 
 const es: Record<LangKey, string> = {
+  flyUp: 'Mantén pulsado para subir',
+  flyDown: 'Mantén pulsado para bajar',
   openMenu: "Abrir menú",
   movementControl: "Arrastra para moverte; suelta para parar",
   title: 'En el trigal de Van Gogh',
   subtitle: 'Un óleo en el que puedes caminar',
   instrDesktop: '🖱️ Ordenador: haz clic para fijar el ratón y mirar · W A S D para caminar · Shift para correr · ↑ ↓ altura de vista · + − zoom',
-  instrTouch: '📱 Móvil/tableta (horizontal): desliza en la mitad izquierda para moverte · en la derecha para mirar · pellizca para zoom · toca para interactuar · doble toque para el deslizador de altura',
+  instrTouch: '📱 Móvil/tableta: desliza en la mitad izquierda para moverte · en la derecha para mirar · pellizca para zoom · toca para interactuar · mantén los botones inferiores derechos para subir o bajar',
   instrInteract: '✨ Interactúa: toca el trigo para una ráfaga de viento · toca los cipreses para espantar gorriones · toca el cielo para cambiar la hora',
   instrChat: '💬 Pulsa Enter —o toca tu pájaro blanco— para hablar; tus palabras serán una burbuja sobre él · los amigos en línea también aparecen como pájaros blancos',
   instrEsc: "⏸️ Toca ☰ o pulsa ESC para volver a este menú",
@@ -371,8 +373,6 @@ const es: Record<LangKey, string> = {
   toastNetErr: 'Error de red — mensaje no enviado',
   chatPlaceholder: 'Di algo… (Enter para enviar, Esc para cancelar)',
   chatSend: 'Enviar',
-  rotateTitle: 'Gira el dispositivo a horizontal',
-  rotateSub: 'El trigal entero necesita la vista ancha — pon el dispositivo de lado',
   modeDay: 'Día',
   modeDusk: 'Atardecer',
   modeNight: 'Noche',
@@ -429,12 +429,14 @@ const es: Record<LangKey, string> = {
 }
 
 const fr: Record<LangKey, string> = {
+  flyUp: 'Maintenez pour monter',
+  flyDown: 'Maintenez pour descendre',
   openMenu: "Ouvrir le menu",
   movementControl: "Glissez pour avancer ; relâchez pour arrêter",
   title: 'Dans les blés de Van Gogh',
   subtitle: "Une peinture à l'huile où l'on peut marcher",
   instrDesktop: '🖱️ Ordinateur : cliquez pour verrouiller la souris et regarder · W A S D pour marcher · Shift pour courir · ↑ ↓ hauteur de vue · + − zoom',
-  instrTouch: '📱 Téléphone / tablette (paysage) : glissez sur la moitié gauche pour bouger · sur la droite pour regarder · pincez pour zoomer · touchez pour interagir · double-tap pour le curseur de hauteur',
+  instrTouch: '📱 Téléphone / tablette : glissez sur la moitié gauche pour bouger · sur la droite pour regarder · pincez pour zoomer · touchez pour interagir · maintenez les boutons en bas à droite pour monter ou descendre',
   instrInteract: "✨ Interactions : touchez les blés pour une rafale de vent · les cyprès pour envoler les moineaux · le ciel pour changer l'heure",
   instrChat: "💬 Entrée — ou touchez votre oiseau blanc — pour parler ; vos mots deviennent une bulle au-dessus de lui · les amis en ligne apparaissent aussi en oiseaux blancs",
   instrEsc: "⏸️ Touchez ☰ ou appuyez sur Échap pour revenir au menu",
@@ -455,8 +457,6 @@ const fr: Record<LangKey, string> = {
   toastNetErr: 'Problème de réseau — message non envoyé',
   chatPlaceholder: 'Dites quelque chose… (Entrée pour envoyer, Échap pour annuler)',
   chatSend: 'Envoyer',
-  rotateTitle: 'Tournez en mode paysage',
-  rotateSub: "Tout le champ de blé a besoin de la vue large — tournez votre appareil sur le côté",
   modeDay: 'Jour',
   modeDusk: 'Crépuscule',
   modeNight: 'Nuit',
@@ -513,12 +513,14 @@ const fr: Record<LangKey, string> = {
 }
 
 const nl: Record<LangKey, string> = {
+  flyUp: 'Houd ingedrukt om te stijgen',
+  flyDown: 'Houd ingedrukt om te dalen',
   openMenu: "Menu openen",
   movementControl: "Sleep om te bewegen; laat los om te stoppen",
   title: 'In Van Goghs Korenveld',
   subtitle: 'Een olieverfschilderij om in rond te lopen',
   instrDesktop: '🖱️ Computer: klik om de muis vast te zetten en rond te kijken · W A S D om te lopen · Shift om te rennen · ↑ ↓ kijkhoogte · + − zoomen',
-  instrTouch: '📱 Telefoon / tablet (liggend): veeg links om te bewegen · veeg rechts om rond te kijken · knijp om te zoomen · tik voor interactie · dubbeltik voor de hoogteschuif',
+  instrTouch: '📱 Telefoon / tablet: veeg links om te bewegen · veeg rechts om rond te kijken · knijp om te zoomen · tik voor interactie · houd de knoppen rechtsonder vast om te stijgen of dalen',
   instrInteract: '✨ Interactie: tik op het koren voor een windvlaag · tik op cipressen om mussen op te jagen · tik op de lucht voor een ander tijdstip',
   instrChat: '💬 Enter — of tik op je witte vogel — om te praten; je woorden worden een bubbel erboven · vrienden die online zijn verschijnen ook als witte vogels',
   instrEsc: "⏸️ Tik op ☰ of druk op ESC om terug te gaan naar dit menu",
@@ -539,8 +541,6 @@ const nl: Record<LangKey, string> = {
   toastNetErr: 'Netwerkfout — bericht niet verzonden',
   chatPlaceholder: 'Zeg iets… (Enter om te sturen, Esc om te annuleren)',
   chatSend: 'Versturen',
-  rotateTitle: 'Draai naar liggend',
-  rotateSub: 'Het hele korenveld past alleen in de brede weergave — draai je apparaat op zijn kant',
   modeDay: 'Dag',
   modeDusk: 'Schemer',
   modeNight: 'Nacht',
@@ -597,12 +597,14 @@ const nl: Record<LangKey, string> = {
 }
 
 const de: Record<LangKey, string> = {
+  flyUp: 'Zum Steigen gedrückt halten',
+  flyDown: 'Zum Sinken gedrückt halten',
   openMenu: "Menü öffnen",
   movementControl: "Zum Bewegen ziehen; zum Anhalten loslassen",
   title: 'In Van Goghs Weizenfeld',
   subtitle: 'Ein Ölgemälde, in das man hineinspazieren kann',
   instrDesktop: '🖱️ Computer: Klicken, um die Maus zu fixieren und umzusehen · W A S D zum Gehen · Shift zum Rennen · ↑ ↓ Sichthöhe · + − Zoom',
-  instrTouch: '📱 Handy / Tablet (Querformat): linke Hälfte wischen zum Bewegen · rechte Hälfte wischen zum Umsehen · mit zwei Fingern zoomen · tippen für Interaktion · doppeltippen für den Höhenregler',
+  instrTouch: '📱 Handy / Tablet: linke Hälfte wischen zum Bewegen · rechte Hälfte wischen zum Umsehen · mit zwei Fingern zoomen · tippen für Interaktion · Tasten unten rechts zum Steigen oder Sinken gedrückt halten',
   instrInteract: '✨ Interaktion: Tippe aufs Weizenfeld für einen Windstoß · auf Zypressen, um Spatzen aufzuscheuchen · auf den Himmel, um die Tageszeit zu wechseln',
   instrChat: '💬 Enter — oder tippe auf deinen weißen Vogel — zum Sprechen; deine Worte werden eine Blase über ihm · Freunde, die online sind, erscheinen ebenfalls als weiße Vögel',
   instrEsc: "⏸️ Tippe auf ☰ oder drücke ESC, um zum Menü zurückzukehren",
@@ -641,8 +643,6 @@ const de: Record<LangKey, string> = {
   toastPerched: '🪶 Sanft niedergelassen',
   friendJoined: '🕊️ Fliege zum Gemälde deines Freundes…',
   friendJoinHint: 'Tippen, um zu ihrem Gemälde zu fliegen',
-  rotateTitle: 'Bitte ins Querformat drehen',
-  rotateSub: 'Das ganze Weizenfeld braucht die breite Ansicht — drehe dein Gerät seitlich',
   modeDay: 'Tag',
   modeDusk: 'Dämmerung',
   modeNight: 'Nacht',
