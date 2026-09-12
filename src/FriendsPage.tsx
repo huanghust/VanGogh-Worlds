@@ -84,7 +84,7 @@ export function FriendsPage({
       <button
         onClick={onClose}
         className="absolute left-5 top-5 flex h-11 w-11 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-        aria-label="back"
+        aria-label={t('back')}
       >
         ‹
       </button>

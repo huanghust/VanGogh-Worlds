@@ -229,7 +229,7 @@ export function FriendMenu({
       >
         <button
           onClick={onClose}
-          aria-label="close"
+          aria-label={t('close')}
           className="absolute left-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-lg text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
         >
           ‹

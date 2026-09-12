@@ -29,6 +29,7 @@ import { LeadFollower } from './scene/LeadFollower'
 import { PerchController } from './scene/PerchController'
 import type { PerchPoint } from './scene/perch'
 import { FriendsPage, PerchBirdIcon } from './FriendsPage'
+import { InstructionsPage } from './InstructionsPage'
 import {
   getPlayerId,
   apiHeartbeat,
@@ -156,7 +157,7 @@ function LanguagePage({
       <button
         onClick={onClose}
         className="absolute left-5 top-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-        aria-label="back"
+        aria-label={t('back')}
       >
         ‹
       </button>
@@ -196,45 +197,6 @@ function LanguagePage({
   )
 }
 
-// dedicated instructions page — same visual style as the language page, scrollable
-function InstructionsPage({ t, onClose }: { t: (k: LangKey) => string; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  const lines: LangKey[] = ['instrDesktop', 'instrTouch', 'instrInteract', 'instrChat', 'instrEsc']
-
-  return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#0d1530]/95 backdrop-blur-sm">
-      <button
-        onClick={onClose}
-        className="absolute left-5 top-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-        aria-label="back"
-      >
-        ‹
-      </button>
-      <div className="mb-2 mt-20 text-3xl">🌾</div>
-      <h2 className="mb-6 px-4 text-center text-xl tracking-[0.25em] text-[#f5e6bd]">{t('howToTitle')}</h2>
-      <div className="w-full max-w-2xl flex-1 overflow-y-auto px-6 pb-20">
-        <div className="space-y-3">
-          {lines.map((k) => (
-            <p
-              key={k}
-              className="rounded-2xl border border-[#f5e6bd]/20 bg-white/5 px-5 py-3.5 text-center text-sm leading-7 text-[#e8d9ae]/90"
-            >
-              {t(k)}
-            </p>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // dedicated maps page — the paintings we have walkable maps for, early to late
 function MapsPage({
   t,
@@ -260,7 +222,7 @@ function MapsPage({
       <button
         onClick={onClose}
         className="absolute left-5 top-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-        aria-label="back"
+        aria-label={t('back')}
       >
         ‹
       </button>
@@ -337,7 +299,7 @@ function SettingsPage({
       <button
         onClick={onClose}
         className="absolute left-5 top-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-        aria-label="back"
+        aria-label={t('back')}
       >
         ‹
       </button>
@@ -1443,7 +1405,7 @@ export default function App() {
         )}
 
         {/* dedicated instructions page */}
-        {howToOpen && menuOpen && <InstructionsPage t={t} onClose={() => setHowToOpen(false)} />}
+        {howToOpen && menuOpen && <InstructionsPage lang={lang} t={t} onClose={() => setHowToOpen(false)} />}
 
         {/* dedicated maps page */}
         {mapsPageOpen && menuOpen && (
