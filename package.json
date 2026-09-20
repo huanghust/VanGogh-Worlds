@@ -14,7 +14,8 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "support:review": "esbuild scripts/support-review.ts --bundle --packages=external --platform=node --format=esm --outfile=node_modules/.cache/support-review.mjs --log-level=error && node node_modules/.cache/support-review.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

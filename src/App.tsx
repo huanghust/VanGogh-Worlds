@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Volume2, VolumeX, Settings, Bird, Send, Menu } from 'lucide-react'
+import { Bird, Settings, Send, Menu } from 'lucide-react'
 import { MovementStick } from './controls/movementStick'
 import { FlightButtons } from './controls/FlightButtons'
 import { HeldDirection } from './controls/heldDirection'
@@ -30,6 +30,7 @@ import { PerchController } from './scene/PerchController'
 import type { PerchPoint } from './scene/perch'
 import { FriendsPage, PerchBirdIcon } from './FriendsPage'
 import { InstructionsPage } from './InstructionsPage'
+import { SettingsPage } from './SettingsPage'
 import {
   getPlayerId,
   apiHeartbeat,
@@ -249,67 +250,6 @@ function MapsPage({
             </span>
           </button>
         ))}
-      </div>
-    </div>
-  )
-}
-
-// dedicated settings page — same visual style as the language page
-function SettingsPage({
-  t,
-  pointerLock,
-  continuousFly,
-  onToggleLock,
-  onToggleFly,
-  onClose,
-}: {
-  t: (k: LangKey) => string
-  pointerLock: boolean
-  continuousFly: boolean
-  onToggleLock: () => void
-  onToggleFly: () => void
-  onClose: () => void
-}) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  const Row = ({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) => (
-    <button
-      onClick={onToggle}
-      className="mb-2 flex w-full items-center justify-between rounded-2xl border border-[#f5e6bd]/20 px-5 py-3.5 text-left text-[#e8d9ae]/80 transition-all hover:border-[#f5e6bd]/60 hover:bg-[#f5e6bd]/5"
-    >
-      <span className="text-base">{label}</span>
-      <span
-        className={`rounded-full border px-4 py-1 text-xs tracking-widest transition-all ${
-          on ? 'border-[#f5e6bd] bg-[#f5e6bd]/15 text-[#f5e6bd]' : 'border-[#f5e6bd]/30 text-[#d8c48a]/50'
-        }`}
-      >
-        {on ? t('settingsOn') : t('settingsOff')}
-      </span>
-    </button>
-  )
-
-  return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#0d1530]/95 backdrop-blur-sm">
-      <button
-        onClick={onClose}
-        className="absolute left-5 top-5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 text-xl text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-        aria-label={t('back')}
-      >
-        ‹
-      </button>
-      <div className="mb-2 mt-20 text-3xl text-[#f5e6bd]">
-        <Settings size={30} strokeWidth={1.5} />
-      </div>
-      <h2 className="mb-6 px-4 text-center text-xl tracking-[0.25em] text-[#f5e6bd]">{t('settingsTitle')}</h2>
-      <div className="w-full max-w-md flex-1 overflow-y-auto px-6 pb-20">
-        <Row label={t('settingsPointerLock')} on={pointerLock} onToggle={onToggleLock} />
-        <Row label={t('settingsContinuousFly')} on={continuousFly} onToggle={onToggleFly} />
       </div>
     </div>
   )
@@ -599,7 +539,6 @@ export default function App() {
   const [perch, setPerch] = useState<PerchPoint | null>(null)
   const [perched, setPerched] = useState(false)
   const perchedRef = useRef(false)
-  const [friendsPageOpen, setFriendsPageOpen] = useState(false)
   const [spawnTick, setSpawnTick] = useState(0) // bump = teleport to spawn (joining a friend)
   // locate & warp: face a friend, then a second tap within 10s offers the warp
   const faceRef = useRef<{ x: number; z: number } | null>(null)
@@ -627,7 +566,9 @@ export default function App() {
   const [lang, setLangState] = useState<Lang>(() => detectLang())
   const [langPageOpen, setLangPageOpen] = useState(() => new URLSearchParams(window.location.search).has('langtest'))
   const [howToOpen, setHowToOpen] = useState(false)
-  const [muted, setMuted] = useState(() => audio.isMuted())
+  const [audioMix, setAudioMix] = useState(() => audio.getMix())
+  const [mapsPageOpen, setMapsPageOpen] = useState(false)
+  const [friendsPageOpen, setFriendsPageOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   // pointer lock: on = mouse captured for looking (default) · off = drag to look
   const [pointerLock, setPointerLockState] = useState(
@@ -652,7 +593,6 @@ export default function App() {
     if (q === 'auvers' || q === 'wheatfield' || q === 'crowfield') return q
     return detectMap()
   })
-  const [mapsPageOpen, setMapsPageOpen] = useState(false)
   const setMap = (m: MapId) => {
     setMapState(m)
     saveMap(m)
@@ -688,7 +628,7 @@ export default function App() {
   const answeredReqs = useRef(new Map<string, number>()) // from -> when we answered (for re-requests)
   const seenIncomingLead = useRef(new Map<string, number>())
   const answeredLeads = useRef(new Map<string, number>())
-  // the soundtrack follows the painting — gold gets music, green keeps wind
+  // Each painting has its own soundtrack and ambient sounds.
   useEffect(() => {
     audio.setMap(map)
   }, [map])
@@ -1323,28 +1263,14 @@ export default function App() {
         {/* menu frame — shown at start and every time ESC is pressed */}
         {menuOpen && (
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-[#0d1530]/80 backdrop-blur-sm">
-            {/* top-left entries: language page + instructions page */}
+            {/* Controls Guide stays separate; painting and Friends shortcuts stay below Enter. */}
             <div className="absolute left-5 top-5 flex items-center gap-2">
-              <button
-                onClick={() => setLangPageOpen(true)}
-                className="flex min-h-11 items-center gap-2 rounded-full border border-[#f5e6bd]/40 bg-black/20 px-4 py-2 text-sm text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-              >
-                🌐 {LANGS.find((l) => l.id === lang)?.label}
-              </button>
               <button
                 onClick={() => setHowToOpen(true)}
                 aria-label={t('howToTitle')}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-base text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
               >
                 ?
-              </button>
-              <button
-                onClick={() => setMuted(audio.toggleMute())}
-                aria-label={muted ? t('soundOff') : t('soundOn')}
-                title={muted ? t('soundOff') : t('soundOn')}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f5e6bd]/40 bg-black/20 text-[#f5e6bd] transition-all hover:bg-[#f5e6bd]/10"
-              >
-                {muted ? <VolumeX size={17} strokeWidth={1.8} /> : <Volume2 size={17} strokeWidth={1.8} />}
               </button>
               <button
                 onClick={() => setSettingsOpen(true)}
@@ -1405,40 +1331,34 @@ export default function App() {
           <LanguagePage t={t} lang={lang} onPick={setLang} onClose={() => setLangPageOpen(false)} />
         )}
 
+        {mapsPageOpen && menuOpen && <MapsPage t={t} map={map} onPick={setMap} onClose={() => setMapsPageOpen(false)} />}
+        {friendsPageOpen && menuOpen && <FriendsPage t={t} onClose={() => setFriendsPageOpen(false)} onJoin={(friend) => {
+          if (!friend.map) return
+          if (friend.map === 'wheatfield' || friend.map === 'auvers' || friend.map === 'crowfield') setMap(friend.map)
+          setPerch(null)
+          setSpawnTick((n) => n + 1)
+          setFriendsPageOpen(false)
+          enterPainting()
+          showToast(tRef.current('friendJoined'))
+        }} />}
+
         {/* dedicated instructions page */}
         {howToOpen && menuOpen && <InstructionsPage lang={lang} t={t} onClose={() => setHowToOpen(false)} />}
 
-        {/* dedicated maps page */}
-        {mapsPageOpen && menuOpen && (
-          <MapsPage t={t} map={map} onPick={setMap} onClose={() => setMapsPageOpen(false)} />
-        )}
-
-        {/* dedicated friends page */}
-        {friendsPageOpen && menuOpen && (
-          <FriendsPage
-            t={t}
-            onClose={() => setFriendsPageOpen(false)}
-            onJoin={(f) => {
-              if (!f.map) return
-              if (f.map === 'wheatfield' || f.map === 'auvers' || f.map === 'crowfield') setMap(f.map)
-              setPerch(null)
-              setSpawnTick((n) => n + 1) // land at the spawn point of their painting
-              setFriendsPageOpen(false)
-              enterPainting()
-              showToast(tRef.current('friendJoined'))
-            }}
-          />
-        )}
-
-        {/* dedicated settings page */}
+        {/* Language, sound, flight settings, and support live in the gear hub. */}
         {settingsOpen && menuOpen && (
           <SettingsPage
+            lang={lang}
             t={t}
+            mix={audioMix}
             pointerLock={pointerLock}
             continuousFly={continuousFly}
+            onVolume={(channel, value) => setAudioMix(audio.setVolume(channel, value))}
+            onMute={(channel) => setAudioMix(audio.toggleChannelMute(channel))}
             onToggleLock={() => setPointerLock(!pointerLock)}
             onToggleFly={() => setContinuousFly(!continuousFly)}
             onClose={() => setSettingsOpen(false)}
+            renderLanguage={(onBack) => <LanguagePage t={t} lang={lang} onPick={setLang} onClose={onBack} />}
           />
         )}
 

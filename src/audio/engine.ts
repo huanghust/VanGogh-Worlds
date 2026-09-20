@@ -3,10 +3,10 @@
 // your speed, and gust interactions; birds / crickets / crow caws are generated
 // sample files in /public/sounds. Everything hangs off one lazily-created
 // AudioContext that only starts after the "enter the painting" user gesture.
+import { RecordedMusic } from './recordedMusic'
+import { AudioMixer, type AudioChannel } from './mixer'
 
 export type SkyMode = 'day' | 'dusk' | 'night'
-
-const MUTE_KEY = 'wheatfield-muted'
 
 // ---- per-painting songs ---------------------------------------------------
 type Song = {
@@ -85,7 +85,7 @@ const SONGS: Record<string, Song> = {
 
 class AudioEngine {
   private ctx: AudioContext | null = null
-  private master: GainNode | null = null
+  private mixer = new AudioMixer()
   private windGain: GainNode | null = null
   private windFilter: BiquadFilterNode | null = null
   private noiseBuf: AudioBuffer | null = null
@@ -123,12 +123,12 @@ class AudioEngine {
   private musicBus: GainNode | null = null // notes land here (dry + delay send)
   private musicGain: GainNode | null = null // per-map music volume
   private musicWet: GainNode | null = null // hall send level, per-map
+  private stormMusic: RecordedMusic | null = null
   private nextNoteTime = 0
   private step = 0 // eighth-note counter
   private melodyIdx = 3
 
   private started = false
-  private muted = typeof localStorage !== 'undefined' && localStorage.getItem(MUTE_KEY) === '1'
   private mode: SkyMode = 'day'
   private map = 'wheatfield'
 
@@ -136,18 +136,9 @@ class AudioEngine {
   private gustBoost = 0 // decays after a gust click
   private motion = 0 // 0..1 from flight speed
 
-  isMuted() {
-    return this.muted
-  }
-
-  toggleMute(): boolean {
-    this.muted = !this.muted
-    localStorage.setItem(MUTE_KEY, this.muted ? '1' : '0')
-    if (this.master && this.ctx) {
-      this.master.gain.setTargetAtTime(this.muted ? 0 : 1, this.ctx.currentTime, 0.1)
-    }
-    return this.muted
-  }
+  getMix() { return this.mixer.snapshot() }
+  setVolume(channel: AudioChannel, volume: number) { return this.mixer.setVolume(channel, volume) }
+  toggleChannelMute(channel: AudioChannel) { return this.mixer.toggleMute(channel) }
 
   // called from the "enter the painting" click — the one user gesture that
   // unlocks audio in every browser
@@ -161,8 +152,6 @@ class AudioEngine {
     this.ctx = new AC()
     void this.ctx.resume()
 
-    this.master = this.ctx.createGain()
-    this.master.gain.value = this.muted ? 0 : 1
     // hard limiter as the last stage: even if ANY synth ever misbehaves, the
     // worst anyone hears is loud — never a speaker-tearing screech
     const limiter = this.ctx.createDynamicsCompressor()
@@ -171,11 +160,12 @@ class AudioEngine {
     limiter.ratio.value = 20
     limiter.attack.value = 0.002
     limiter.release.value = 0.25
-    this.master.connect(limiter)
+    this.mixer.attach(this.ctx, limiter)
     limiter.connect(this.ctx.destination)
 
     this.buildWind()
     this.buildMusic()
+    this.stormMusic = new RecordedMusic(this.ctx, this.mixer.input('music'), '/sounds/crowfield/rainward.m4a')
     this.applyMusicMode() // honor the map that was set before the ctx existed
     void this.loadAmbience()
   }
@@ -205,7 +195,7 @@ class AudioEngine {
     fb.connect(delay)
     delay.connect(wet)
     wet.connect(this.musicGain)
-    this.musicGain.connect(this.master!)
+    this.musicGain.connect(this.mixer.input('music'))
 
     this.nextNoteTime = ctx.currentTime + 0.15
     this.step = 0
@@ -215,6 +205,10 @@ class AudioEngine {
   private scheduleAhead() {
     const ctx = this.ctx
     if (!ctx || !this.musicBus) return
+    if (this.map === 'crowfield') {
+      this.nextNoteTime = ctx.currentTime + 0.15
+      return
+    }
     const song = SONGS[this.map] ?? SONGS.wheatfield
     while (this.nextNoteTime < ctx.currentTime + 0.6) {
       this.scheduleStep(this.step, this.nextNoteTime, song)
@@ -531,7 +525,7 @@ class AudioEngine {
 
     src.connect(this.windFilter)
     this.windFilter.connect(this.windGain)
-    this.windGain.connect(this.master!)
+    this.windGain.connect(this.mixer.input('nature'))
     src.start()
     lfo.start()
     lfo2.start()
@@ -585,7 +579,7 @@ class AudioEngine {
       const g = ctx.createGain()
       g.gain.value = 0
       src.connect(g)
-      g.connect(this.master!)
+      g.connect(this.mixer.input('nature'))
       src.start()
       return g
     }
@@ -602,7 +596,7 @@ class AudioEngine {
       this.rainGain.gain.value = 0
       src.connect(lp)
       lp.connect(this.rainGain)
-      this.rainGain.connect(this.master!)
+      this.rainGain.connect(this.mixer.input('nature'))
       src.start()
     }
     this.applyMode()
@@ -631,7 +625,8 @@ class AudioEngine {
     // green one stays dry enough to hear every note
     const wet = this.map === 'wheatfield' ? 0.3 : this.map === 'auvers' ? 0.16 : 0.2
     this.musicWet?.gain.setTargetAtTime(wet, this.ctx.currentTime, 1.5)
-    // crowfield weather: the rain never stops (theme music held back for now)
+    this.stormMusic?.setActive(this.map === 'crowfield')
+    // Keep the rain beneath the recorded cello and piano arrangement.
     this.rainGain?.gain.setTargetAtTime(this.map === 'crowfield' ? 0.09 : 0, this.ctx.currentTime, 1.5)
   }
 
@@ -654,7 +649,7 @@ class AudioEngine {
   // gust front arrives, then settling — distinct from the ambient wind bed
   private playWhoosh() {
     const ctx = this.ctx
-    if (!ctx || !this.master || !this.noiseBuf) return
+    if (!ctx || !this.noiseBuf) return
     const t = ctx.currentTime
 
     const src = ctx.createBufferSource()
@@ -675,7 +670,7 @@ class AudioEngine {
 
     src.connect(bp)
     bp.connect(g)
-    g.connect(this.master)
+    g.connect(this.mixer.input('effects'))
     src.start(t, Math.random() * 1.2) // random offset into the 2s noise loop
     src.stop(t + 2)
   }
@@ -684,7 +679,7 @@ class AudioEngine {
   // takeoff. Synthesized: each bird fires 2-3 quick swept chirps
   // (chi-chi-chi), no sample needed
   sparrowBurst(count = 5) {
-    if (!this.ctx || !this.master) return
+    if (!this.ctx) return
     const t0 = this.ctx.currentTime
     for (let i = 0; i < count; i++) {
       const start = t0 + i * (0.08 + Math.random() * 0.2)
@@ -702,7 +697,7 @@ class AudioEngine {
         g.gain.exponentialRampToValueAtTime(0.09 + Math.random() * 0.05, t + 0.012)
         g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1)
         osc.connect(g)
-        g.connect(this.master)
+        g.connect(this.mixer.input('effects'))
         osc.start(t)
         osc.stop(t + 0.12)
       }
@@ -710,15 +705,15 @@ class AudioEngine {
   }
 
   // chat sounds — soft pops, kept well under the ambience
-  private playBuf(buf: AudioBuffer | null, volume: number, rate = 1, delay = 0) {
-    if (!this.ctx || !buf || !this.master) return
+  private playBuf(buf: AudioBuffer | null, volume: number, rate = 1, delay = 0, channel: 'nature' | 'effects' = 'effects') {
+    if (!this.ctx || !buf) return
     const src = this.ctx.createBufferSource()
     src.buffer = buf
     src.playbackRate.value = rate
     const g = this.ctx.createGain()
     g.gain.value = volume
     src.connect(g)
-    g.connect(this.master)
+    g.connect(this.mixer.input(channel))
     src.start(this.ctx.currentTime + delay)
   }
 
@@ -743,10 +738,10 @@ class AudioEngine {
       const now = this.ctx.currentTime
       if (now >= this.nextCaw) {
         const vol = (this.mode === 'dusk' ? 0.16 : 0.24) * (0.8 + Math.random() * 0.4)
-        this.playBuf(this.crowBuffer, vol, 0.92 + Math.random() * 0.2)
+        this.playBuf(this.crowBuffer, vol, 0.92 + Math.random() * 0.2, 0, 'nature')
         if (Math.random() < 0.35) {
           // a second crow answers from across the field
-          this.playBuf(this.crowBuffer, vol * 0.7, 0.85 + Math.random() * 0.15, 0.55 + Math.random() * 0.4)
+          this.playBuf(this.crowBuffer, vol * 0.7, 0.85 + Math.random() * 0.15, 0.55 + Math.random() * 0.4, 'nature')
         }
         this.nextCaw = now + 3.5 + Math.random() * 6
       }

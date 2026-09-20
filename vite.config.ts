@@ -20,6 +20,8 @@ export default defineConfig({
     }), react()],
   server: {
     port: 3000,
+    // Private support submissions must never be served as development assets.
+    fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/.data/**'] },
   },
   resolve: {
     alias: {

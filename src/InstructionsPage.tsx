@@ -2,27 +2,34 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import * as Tabs from '@radix-ui/react-tabs'
 import type { Lang, LangKey } from './i18n'
+import { Search, X } from 'lucide-react'
+import { searchGuide } from './guideSearch'
+import { useTouchDevice } from './hooks/use-touch-device'
 
-const sections: { id: string; title: LangKey; rows: { title: LangKey; body: LangKey }[] }[] = [
-  { id: 'flying', title: 'helpFlying', rows: [
+type GuideRow = { title: LangKey; body: LangKey }
+const sharedRows: GuideRow[] = [
+  { title: 'settingsTitle', body: 'helpSettingsHub' },
+  { title: 'helpWorldInteract', body: 'instrInteract' },
+  { title: 'helpWorldRest', body: 'perchHint' },
+  { title: 'changeMapsBtn', body: 'helpPaintingsBody' },
+  { title: 'helpFriendMeet', body: 'helpFriendMeetBody' },
+  { title: 'helpFriendTravel', body: 'helpFriendTravelBody' },
+  { title: 'helpFriendFind', body: 'helpFriendFindBody' },
+]
+const sections: { id: string; title: LangKey; rows: GuideRow[] }[] = [
+  { id: 'computer', title: 'helpComputer', rows: [
     { title: 'helpKeyboard', body: 'instrDesktop' },
-    { title: 'helpTouch', body: 'instrTouch' },
-    { title: 'settingsContinuousFly', body: 'helpFlightModesBody' },
-    { title: 'openMenu', body: 'instrEsc' },
+    { title: 'settingsContinuousFly', body: 'helpFlightDesktop' },
+    { title: 'openMenu', body: 'helpMenuDesktop' },
+    { title: 'helpChat', body: 'helpChatDesktop' },
+    ...sharedRows,
   ] },
-  { id: 'exploring', title: 'helpExploring', rows: [
-    { title: 'helpWorldInteract', body: 'instrInteract' },
-    { title: 'helpWorldRest', body: 'perchHint' },
-    { title: 'changeMapsBtn', body: 'helpPaintingsBody' },
-  ] },
-  { id: 'chat', title: 'helpChat', rows: [
-    { title: 'helpChatStart', body: 'instrChat' },
-    { title: 'helpChatSend', body: 'helpChatSendBody' },
-  ] },
-  { id: 'friends', title: 'friendsBtn', rows: [
-    { title: 'helpFriendMeet', body: 'helpFriendMeetBody' },
-    { title: 'helpFriendTravel', body: 'helpFriendTravelBody' },
-    { title: 'helpFriendFind', body: 'helpFriendFindBody' },
+  { id: 'touch', title: 'helpTouch', rows: [
+    { title: 'helpFlying', body: 'instrTouch' },
+    { title: 'settingsContinuousFly', body: 'helpFlightTouch' },
+    { title: 'openMenu', body: 'helpMenuTouch' },
+    { title: 'helpChat', body: 'helpChatTouch' },
+    ...sharedRows,
   ] },
 ]
 
@@ -43,7 +50,9 @@ export function InstructionsPage(props: InstructionsProps) {
 }
 
 function InstructionsContent({ lang, t, onClose }: InstructionsProps) {
-  const [active, setActive] = useState('flying')
+  const hasTouch = useTouchDevice()
+  const [active, setActive] = useState(() => hasTouch ? 'touch' : 'computer')
+  const [queries, setQueries] = useState<Record<string, string>>({ computer: '', touch: '' })
   const [returnFocus] = useState(() => document.activeElement)
   const nav = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
@@ -96,19 +105,29 @@ function InstructionsContent({ lang, t, onClose }: InstructionsProps) {
             <span ref={underline} aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 h-0.5 rounded-full bg-[#f5e6bd] transition-[transform,width] duration-200 motion-reduce:transition-none" />
           </Tabs.List>
         </div>
-        {sections.map((section) => (
-          <Tabs.Content key={section.id} value={section.id}
-            className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#f5e6bd]/50">
-            <div className="space-y-3">
-              {section.rows.map((row) => (
-                <section key={row.title} className="rounded-2xl border border-[#f5e6bd]/15 bg-white/5 px-5 py-4">
-                  <h3 className="mb-2 text-base text-[#f5e6bd]">{t(row.title)}</h3>
-                  <p className="whitespace-pre-line text-sm leading-7 text-[#e8d9ae]/85">{t(row.body)}</p>
-                </section>
-              ))}
+        {sections.map((section) => {
+          const query = queries[section.id] ?? ''
+          const rows = searchGuide(section.rows.map((row) => ({ id: row.title, title: t(row.title), body: t(row.body) })), query, lang)
+          return <Tabs.Content key={section.id} value={section.id}
+            className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden focus-visible:outline-none">
+            <div className="shrink-0 py-4">
+              <div className="flex min-h-12 items-center rounded-full border border-[#f5e6bd]/30 bg-white/5 pl-4 focus-within:border-[#f5e6bd]">
+                <Search aria-hidden="true" size={18} className="mr-3 shrink-0 text-[#d8c48a]/70" />
+                <input type="search" aria-label={t('guideSearch')} placeholder={t('guideSearch')}
+                  value={query} onChange={(event) => setQueries((previous) => ({ ...previous, [section.id]: event.target.value }))}
+                  className="min-w-0 flex-1 bg-transparent py-3 pr-3 text-base outline-none placeholder:text-[#d8c48a]/60 [&::-webkit-search-cancel-button]:hidden" />
+                {query && <button type="button" aria-label={t('guideClearSearch')} onClick={() => setQueries((previous) => ({ ...previous, [section.id]: '' }))}
+                  className="mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f5e6bd]"><X size={17} aria-hidden="true" /></button>}
+              </div>
+            </div>
+            <div key={query} className="min-h-0 flex-1 touch-pan-y space-y-3 overflow-y-auto overscroll-y-contain pb-[max(2rem,env(safe-area-inset-bottom))]">
+              {rows.length ? rows.map((row) => <section key={row.id} className="rounded-2xl border border-[#f5e6bd]/15 bg-white/5 px-5 py-4">
+                <h3 className="mb-2 text-base text-[#f5e6bd]">{row.title}</h3>
+                <p className="whitespace-pre-line text-sm leading-7 text-[#e8d9ae]/85">{row.body}</p>
+              </section>) : <p role="status" className="py-8 text-center text-sm leading-7 text-[#e8d9ae]/75">{t('guideNoResults')}</p>}
             </div>
           </Tabs.Content>
-        ))}
+        })}
       </Tabs.Root>
     </Dialog.Content>
   )
